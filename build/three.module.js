@@ -995,7 +995,6 @@ function Texture( image, mapping, wrapS, wrapT, magFilter, minFilter, format, ty
 	this.flipY = true;
 	this.unpackAlignment = 4;	// valid values: 1, 2, 4, 8 (see http://www.khronos.org/opengles/sdk/docs/man/xhtml/glPixelStorei.xml)
 
-
 	// Values of encoding !== THREE.LinearEncoding only supported on map, envMap and emissiveMap.
 	//
 	// Also changing the encoding after already used by a Material will not automatically make the Material
@@ -1012,13 +1011,13 @@ Texture.DEFAULT_MAPPING = UVMapping;
 
 Object.defineProperty( Texture.prototype, "needsUpdate", {
 
-	set: function(value) { 
-		
-		if ( value === true ) this.version ++; 
-	
+	set: function ( value ) {
+
+		if ( value === true ) this.version ++;
+
 	}
 
-});
+} );
 
 Object.assign( Texture.prototype, EventDispatcher.prototype, {
 
@@ -4980,7 +4979,7 @@ var map_particle_fragment = "#ifdef USE_MAP\n\tvec4 mapTexel = texture2D( map, v
 
 var map_particle_pars_fragment = "#ifdef USE_MAP\n\tuniform vec4 offsetRepeat;\n\tuniform sampler2D map;\n#endif\n";
 
-var metalnessmap_fragment = "float metalnessFactor = metalness;\n#ifdef USE_METALNESSMAP\n\tvec4 texelMetalness = texture2D( metalnessMap, vUv );\n\tmetalnessFactor *= texelMetalness.r;\n#endif\n";
+var metalnessmap_fragment = "float metalnessFactor = metalness;\n#ifdef USE_METALNESSMAP\n\tvec4 texelMetalness = texture2D( metalnessMap, vUv );\n\tmetalnessFactor *= texelMetalness.b;\n#endif\n";
 
 var metalnessmap_pars_fragment = "#ifdef USE_METALNESSMAP\n\tuniform sampler2D metalnessMap;\n#endif";
 
@@ -5002,7 +5001,7 @@ var premultiplied_alpha_fragment = "#ifdef PREMULTIPLIED_ALPHA\n\tgl_FragColor.r
 
 var project_vertex = "#ifdef USE_SKINNING\n\tvec4 mvPosition = modelViewMatrix * skinned;\n#else\n\tvec4 mvPosition = modelViewMatrix * vec4( transformed, 1.0 );\n#endif\ngl_Position = projectionMatrix * mvPosition;\n";
 
-var roughnessmap_fragment = "float roughnessFactor = roughness;\n#ifdef USE_ROUGHNESSMAP\n\tvec4 texelRoughness = texture2D( roughnessMap, vUv );\n\troughnessFactor *= texelRoughness.r;\n#endif\n";
+var roughnessmap_fragment = "float roughnessFactor = roughness;\n#ifdef USE_ROUGHNESSMAP\n\tvec4 texelRoughness = texture2D( roughnessMap, vUv );\n\troughnessFactor *= texelRoughness.g;\n#endif\n";
 
 var roughnessmap_pars_fragment = "#ifdef USE_ROUGHNESSMAP\n\tuniform sampler2D roughnessMap;\n#endif";
 
@@ -7165,22 +7164,22 @@ function Material() {
 
 }
 
-Object.defineProperty( Material.prototype, "needsUpdate", {
+Object.defineProperty( Material.prototype, 'needsUpdate', {
 
-	get: function() {
+	get: function () {
 
 		return this._needsUpdate;
 
 	},
-	
-	set: function(value) {
+
+	set: function ( value ) {
 
 		if ( value === true ) this.update();
 		this._needsUpdate = value;
 
 	}
 
-});
+} );
 
 Object.assign( Material.prototype, EventDispatcher.prototype, {
 
@@ -11685,15 +11684,15 @@ function BufferAttribute( array, itemSize, normalized ) {
 
 }
 
-Object.defineProperty( BufferAttribute.prototype, "needsUpdate", {
+Object.defineProperty( BufferAttribute.prototype, 'needsUpdate', {
 
-	set: function(value) { 
-		
+	set: function ( value ) {
+
 		if ( value === true ) this.version ++;
-	
+
 	}
 
-});
+} );
 
 Object.assign( BufferAttribute.prototype, {
 
@@ -20530,6 +20529,10 @@ function WebGLRenderer( parameters ) {
 
 				renderer.setMode( _gl.LINES );
 
+			} else if ( object.isLineLoop ) {
+
+				renderer.setMode( _gl.LINE_LOOP );
+
 			} else {
 
 				renderer.setMode( _gl.LINE_STRIP );
@@ -21105,16 +21108,30 @@ function WebGLRenderer( parameters ) {
 							var groups = geometry.groups;
 							var materials = material.materials;
 
-							for ( var i = 0, l = groups.length; i < l; i ++ ) {
+							if ( groups.length > 0 ) {
 
-								var group = groups[ i ];
-								var groupMaterial = materials[ group.materialIndex ];
+								// push a render item for each group of the geometry
 
-								if ( groupMaterial.visible === true ) {
+								for ( var i = 0, l = groups.length; i < l; i ++ ) {
 
-									pushRenderItem( object, geometry, groupMaterial, _vector3.z, group );
+									var group = groups[ i ];
+									var groupMaterial = materials[ group.materialIndex ];
+
+									if ( groupMaterial === undefined ) {
+
+										console.warn( 'THREE.WebGLRenderer: MultiMaterial has insufficient amount of materials for geometry. %i material(s) expected but only %i provided.', groups.length, materials.length );
+
+									} else if ( groupMaterial.visible === true ) {
+
+										pushRenderItem( object, geometry, groupMaterial, _vector3.z, group );
+
+									}
 
 								}
+
+							} else {
+
+								console.warn( 'THREE.WebGLRenderer: MultiMaterial can not be used without groups.' );
 
 							}
 
@@ -23689,6 +23706,26 @@ LineSegments.prototype = Object.assign( Object.create( Line.prototype ), {
 } );
 
 /**
+ * @author mgreter / http://github.com/mgreter
+ */
+
+function LineLoop( geometry, material ) {
+
+	Line.call( this, geometry, material );
+
+	this.type = 'LineLoop';
+
+}
+
+LineLoop.prototype = Object.assign( Object.create( Line.prototype ), {
+
+	constructor: LineLoop,
+
+	isLineLoop: true,
+
+} );
+
+/**
  * @author mrdoob / http://mrdoob.com/
  * @author alteredq / http://alteredqualia.com/
  *
@@ -24087,7 +24124,7 @@ function WireframeGeometry( geometry ) {
 
 			if ( groups.length === 0 ) {
 
-				geometry.addGroup( 0, indices.count );
+				groups = [ { start: 0, count: indices.count, materialIndex: 0 } ];
 
 			}
 
@@ -31485,7 +31522,7 @@ function AnimationClip( name, duration, tracks ) {
 
 	this.name = name;
 	this.tracks = tracks;
-	this.duration = ( duration !== undefined ) ? duration : -1;
+	this.duration = ( duration !== undefined ) ? duration : - 1;
 
 	this.uuid = _Math.generateUUID();
 
@@ -31502,7 +31539,7 @@ function AnimationClip( name, duration, tracks ) {
 
 Object.assign( AnimationClip, {
 
-	parse: function( json ) {
+	parse: function ( json ) {
 
 		var tracks = [],
 			jsonTracks = json.tracks,
@@ -31517,8 +31554,8 @@ Object.assign( AnimationClip, {
 		return new AnimationClip( json.name, json.duration, tracks );
 
 	},
-	
-	toJSON: function( clip ) {
+
+	toJSON: function ( clip ) {
 
 		var tracks = [],
 			clipTracks = clip.tracks;
@@ -31540,8 +31577,8 @@ Object.assign( AnimationClip, {
 		return json;
 
 	},
-	
-	CreateFromMorphTargetSequence: function( name, morphTargetSequence, fps, noLoop ) {
+
+	CreateFromMorphTargetSequence: function ( name, morphTargetSequence, fps, noLoop ) {
 
 		var numMorphTargets = morphTargetSequence.length;
 		var tracks = [];
@@ -31576,13 +31613,14 @@ Object.assign( AnimationClip, {
 						'.morphTargetInfluences[' + morphTargetSequence[ i ].name + ']',
 						times, values
 					).scale( 1.0 / fps ) );
+
 		}
 
-		return new AnimationClip( name, -1, tracks );
+		return new AnimationClip( name, - 1, tracks );
 
 	},
 
-	findByName: function( objectOrClipArray, name ) {
+	findByName: function ( objectOrClipArray, name ) {
 
 		var clipArray = objectOrClipArray;
 
@@ -31600,13 +31638,14 @@ Object.assign( AnimationClip, {
 				return clipArray[ i ];
 
 			}
+
 		}
 
 		return null;
 
 	},
 
-	CreateClipsFromMorphTargetSequences: function( morphTargets, fps, noLoop ) {
+	CreateClipsFromMorphTargetSequences: function ( morphTargets, fps, noLoop ) {
 
 		var animationToMorphTargets = {};
 
@@ -31651,7 +31690,7 @@ Object.assign( AnimationClip, {
 	},
 
 	// parse the animation.hierarchy format
-	parseAnimation: function( animation, bones ) {
+	parseAnimation: function ( animation, bones ) {
 
 		if ( ! animation ) {
 
@@ -31660,8 +31699,7 @@ Object.assign( AnimationClip, {
 
 		}
 
-		var addNonemptyTrack = function(
-				trackType, trackName, animationKeys, propertyName, destTracks ) {
+		var addNonemptyTrack = function ( trackType, trackName, animationKeys, propertyName, destTracks ) {
 
 			// only return track if there are actually keys.
 			if ( animationKeys.length !== 0 ) {
@@ -31669,8 +31707,7 @@ Object.assign( AnimationClip, {
 				var times = [];
 				var values = [];
 
-				AnimationUtils.flattenJSON(
-						animationKeys, times, values, propertyName );
+				AnimationUtils.flattenJSON( animationKeys, times, values, propertyName );
 
 				// empty keys are filtered out, so check again
 				if ( times.length !== 0 ) {
@@ -31687,7 +31724,7 @@ Object.assign( AnimationClip, {
 
 		var clipName = animation.name || 'default';
 		// automatic length determination in AnimationClip.
-		var duration = animation.length || -1;
+		var duration = animation.length || - 1;
 		var fps = animation.fps || 30;
 
 		var hierarchyTracks = animation.hierarchy || [];
@@ -31701,17 +31738,19 @@ Object.assign( AnimationClip, {
 
 			// process morph targets in a way exactly compatible
 			// with AnimationHandler.init( animation )
-			if ( animationKeys[0].morphTargets ) {
+			if ( animationKeys[ 0 ].morphTargets ) {
 
 				// figure out all morph targets used in this track
 				var morphTargetNames = {};
+
 				for ( var k = 0; k < animationKeys.length; k ++ ) {
 
-					if ( animationKeys[k].morphTargets ) {
+					if ( animationKeys[ k ].morphTargets ) {
 
-						for ( var m = 0; m < animationKeys[k].morphTargets.length; m ++ ) {
+						for ( var m = 0; m < animationKeys[ k ].morphTargets.length; m ++ ) {
 
-							morphTargetNames[ animationKeys[k].morphTargets[m] ] = -1;
+							morphTargetNames[ animationKeys[ k ].morphTargets[ m ] ] = - 1;
+
 						}
 
 					}
@@ -31726,22 +31765,23 @@ Object.assign( AnimationClip, {
 					var times = [];
 					var values = [];
 
-					for ( var m = 0; m !== animationKeys[k].morphTargets.length; ++ m ) {
+					for ( var m = 0; m !== animationKeys[ k ].morphTargets.length; ++ m ) {
 
-						var animationKey = animationKeys[k];
+						var animationKey = animationKeys[ k ];
 
 						times.push( animationKey.time );
 						values.push( ( animationKey.morphTarget === morphTargetName ) ? 1 : 0 );
 
 					}
 
-					tracks.push( new NumberKeyframeTrack('.morphTargetInfluence[' + morphTargetName + ']', times, values ) );
+					tracks.push( new NumberKeyframeTrack( '.morphTargetInfluence[' + morphTargetName + ']', times, values ) );
 
 				}
 
 				duration = morphTargetNames.length * ( fps || 1.0 );
 
 			} else {
+
 				// ...assume skeletal animation
 
 				var boneName = '.bones[' + bones[ h ].name + ']';
@@ -31778,10 +31818,9 @@ Object.assign( AnimationClip, {
 
 Object.assign( AnimationClip.prototype, {
 
-	resetDuration: function() {
+	resetDuration: function () {
 
-		var tracks = this.tracks,
-			duration = 0;
+		var tracks = this.tracks, duration = 0;
 
 		for ( var i = 0, n = tracks.length; i !== n; ++ i ) {
 
@@ -31795,7 +31834,7 @@ Object.assign( AnimationClip.prototype, {
 
 	},
 
-	trim: function() {
+	trim: function () {
 
 		for ( var i = 0; i < this.tracks.length; i ++ ) {
 
@@ -31807,7 +31846,7 @@ Object.assign( AnimationClip.prototype, {
 
 	},
 
-	optimize: function() {
+	optimize: function () {
 
 		for ( var i = 0; i < this.tracks.length; i ++ ) {
 
@@ -33563,6 +33602,12 @@ Object.assign( ObjectLoader.prototype, {
 
 					break;
 
+				case 'LineLoop':
+
+					object = new LineLoop( getGeometry( data.geometry ), getMaterial( data.material ) );
+
+					break;
+
 				case 'LineSegments':
 
 					object = new LineSegments( getGeometry( data.geometry ), getMaterial( data.material ) );
@@ -33789,7 +33834,7 @@ Object.assign( Curve.prototype, {
 	// Virtual base class method to overwrite and implement in subclasses
 	//	- t [0 .. 1]
 
-	getPoint: function ( t ) {
+	getPoint: function () {
 
 		console.warn( "THREE.Curve: Warning, getPoint() not implemented!" );
 		return null;
@@ -33810,7 +33855,7 @@ Object.assign( Curve.prototype, {
 
 	getPoints: function ( divisions ) {
 
-		if ( isNaN( divisions ) ) divisions = 5;
+		if ( divisions === undefined ) divisions = 5;
 
 		var points = [];
 
@@ -33828,7 +33873,7 @@ Object.assign( Curve.prototype, {
 
 	getSpacedPoints: function ( divisions ) {
 
-		if ( isNaN( divisions ) ) divisions = 5;
+		if ( divisions === undefined ) divisions = 5;
 
 		var points = [];
 
@@ -33855,7 +33900,7 @@ Object.assign( Curve.prototype, {
 
 	getLengths: function ( divisions ) {
 
-		if ( isNaN( divisions ) ) divisions = ( this.__arcLengthDivisions ) ? ( this.__arcLengthDivisions ) : 200;
+		if ( divisions === undefined ) divisions = ( this.__arcLengthDivisions ) ? ( this.__arcLengthDivisions ) : 200;
 
 		if ( this.cacheArcLengths
 			&& ( this.cacheArcLengths.length === divisions + 1 )
@@ -33876,7 +33921,7 @@ Object.assign( Curve.prototype, {
 
 		for ( p = 1; p <= divisions; p ++ ) {
 
-			current = this.getPoint ( p / divisions );
+			current = this.getPoint( p / divisions );
 			sum += current.distanceTo( last );
 			cache.push( sum );
 			last = current;
@@ -33889,7 +33934,7 @@ Object.assign( Curve.prototype, {
 
 	},
 
-	updateArcLengths: function() {
+	updateArcLengths: function () {
 
 		this.needsUpdate = true;
 		this.getLengths();
@@ -33982,7 +34027,7 @@ Object.assign( Curve.prototype, {
 	// 2 points a small delta apart will be used to find its gradient
 	// which seems to give a reasonable approximation
 
-	getTangent: function( t ) {
+	getTangent: function ( t ) {
 
 		var delta = 0.0001;
 		var t1 = t - delta;
@@ -34306,7 +34351,7 @@ CurvePath.prototype = Object.assign( Object.create( Curve.prototype ), {
 
 	getSpacedPoints: function ( divisions ) {
 
-		if ( isNaN( divisions ) ) divisions = 40;
+		if ( divisions === undefined ) divisions = 40;
 
 		var points = [];
 
@@ -36156,7 +36201,7 @@ function PropertyMixer( binding, typeName, valueSize ) {
 Object.assign( PropertyMixer.prototype, {
 
 	// accumulate data in the 'incoming' region into 'accu<i>'
-	accumulate: function( accuIndex, weight ) {
+	accumulate: function ( accuIndex, weight ) {
 
 		// note: happily accumulating nothing when weight = 0, the caller knows
 		// the weight and shouldn't have made the call in the first place
@@ -36194,7 +36239,7 @@ Object.assign( PropertyMixer.prototype, {
 	},
 
 	// apply the state of 'accu<i>' to the binding when accus differ
-	apply: function( accuIndex ) {
+	apply: function ( accuIndex ) {
 
 		var stride = this.valueSize,
 			buffer = this.buffer,
@@ -36233,7 +36278,7 @@ Object.assign( PropertyMixer.prototype, {
 	},
 
 	// remember the state of the bound property and copy it to both accus
-	saveOriginalState: function() {
+	saveOriginalState: function () {
 
 		var binding = this.binding;
 
@@ -36256,7 +36301,7 @@ Object.assign( PropertyMixer.prototype, {
 	},
 
 	// apply the state previously taken via 'saveOriginalState' to the binding
-	restoreOriginalState: function() {
+	restoreOriginalState: function () {
 
 		var originalValueOffset = this.valueSize * 3;
 		this.binding.setValue( this.buffer, originalValueOffset );
@@ -36266,7 +36311,7 @@ Object.assign( PropertyMixer.prototype, {
 
 	// mix functions
 
-	_select: function( buffer, dstOffset, srcOffset, t, stride ) {
+	_select: function ( buffer, dstOffset, srcOffset, t, stride ) {
 
 		if ( t >= 0.5 ) {
 
@@ -36280,14 +36325,13 @@ Object.assign( PropertyMixer.prototype, {
 
 	},
 
-	_slerp: function( buffer, dstOffset, srcOffset, t, stride ) {
+	_slerp: function ( buffer, dstOffset, srcOffset, t ) {
 
-		Quaternion.slerpFlat( buffer, dstOffset,
-			buffer, dstOffset, buffer, srcOffset, t );
+		Quaternion.slerpFlat( buffer, dstOffset, buffer, dstOffset, buffer, srcOffset, t );
 
 	},
 
-	_lerp: function( buffer, dstOffset, srcOffset, t, stride ) {
+	_lerp: function ( buffer, dstOffset, srcOffset, t, stride ) {
 
 		var s = 1 - t;
 
@@ -36313,7 +36357,7 @@ Object.assign( PropertyMixer.prototype, {
  * @author tschw
  */
 
-function Composite ( targetGroup, path, optionalParsedPath ) {
+function Composite( targetGroup, path, optionalParsedPath ) {
 
 	var parsedPath = optionalParsedPath || PropertyBinding.parseTrackName( path );
 
@@ -36324,7 +36368,7 @@ function Composite ( targetGroup, path, optionalParsedPath ) {
 
 Object.assign( Composite.prototype, {
 
-	getValue: function( array, offset ) {
+	getValue: function ( array, offset ) {
 
 		this.bind(); // bind all binding
 
@@ -36336,7 +36380,7 @@ Object.assign( Composite.prototype, {
 
 	},
 
-	setValue: function( array, offset ) {
+	setValue: function ( array, offset ) {
 
 		var bindings = this._bindings;
 
@@ -36349,7 +36393,7 @@ Object.assign( Composite.prototype, {
 
 	},
 
-	bind: function() {
+	bind: function () {
 
 		var bindings = this._bindings;
 
@@ -36362,7 +36406,7 @@ Object.assign( Composite.prototype, {
 
 	},
 
-	unbind: function() {
+	unbind: function () {
 
 		var bindings = this._bindings;
 
@@ -36393,7 +36437,7 @@ Object.assign( PropertyBinding, {
 
 	Composite: Composite,
 
-	create: function( root, path, parsedPath ) {
+	create: function ( root, path, parsedPath ) {
 
 		if ( ! ( root && root.isAnimationObjectGroup ) ) {
 
@@ -36407,7 +36451,7 @@ Object.assign( PropertyBinding, {
 
 	},
 
-	parseTrackName: function( trackName ) {
+	parseTrackName: function ( trackName ) {
 
 		// matches strings in the form of:
 		//    nodeName.property
@@ -36449,9 +36493,9 @@ Object.assign( PropertyBinding, {
 
 	},
 
-	findNode: function( root, nodeName ) {
+	findNode: function ( root, nodeName ) {
 
-		if ( ! nodeName || nodeName === "" || nodeName === "root" || nodeName === "." || nodeName === -1 || nodeName === root.name || nodeName === root.uuid ) {
+		if ( ! nodeName || nodeName === "" || nodeName === "root" || nodeName === "." || nodeName === - 1 || nodeName === root.name || nodeName === root.uuid ) {
 
 			return root;
 
@@ -36460,9 +36504,9 @@ Object.assign( PropertyBinding, {
 		// search into skeleton bones.
 		if ( root.skeleton ) {
 
-			var searchSkeleton = function( skeleton ) {
+			var searchSkeleton = function ( skeleton ) {
 
-				for( var i = 0; i < skeleton.bones.length; i ++ ) {
+				for ( var i = 0; i < skeleton.bones.length; i ++ ) {
 
 					var bone = skeleton.bones[ i ];
 
@@ -36471,6 +36515,7 @@ Object.assign( PropertyBinding, {
 						return bone;
 
 					}
+
 				}
 
 				return null;
@@ -36484,14 +36529,15 @@ Object.assign( PropertyBinding, {
 				return bone;
 
 			}
+
 		}
 
 		// search into node subtree.
 		if ( root.children ) {
 
-			var searchNodeSubtree = function( children ) {
+			var searchNodeSubtree = function ( children ) {
 
-				for( var i = 0; i < children.length; i ++ ) {
+				for ( var i = 0; i < children.length; i ++ ) {
 
 					var childNode = children[ i ];
 
@@ -36530,8 +36576,8 @@ Object.assign( PropertyBinding, {
 Object.assign( PropertyBinding.prototype, { // prototype, continued
 
 	// these are used to "bind" a nonexistent property
-	_getValue_unavailable: function() {},
-	_setValue_unavailable: function() {},
+	_getValue_unavailable: function () {},
+	_setValue_unavailable: function () {},
 
 	BindingType: {
 		Direct: 0,
@@ -36722,7 +36768,7 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 	},
 
 	// create getter / setter pair for a property in the scene graph
-	bind: function() {
+	bind: function () {
 
 		var targetObject = this.node,
 			parsedPath = this.parsedPath,
@@ -36868,9 +36914,11 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 		var bindingType = this.BindingType.Direct;
 
 		if ( propertyIndex !== undefined ) {
+
 			// access a sub element of the property array (only primitives are supported right now)
 
 			if ( propertyName === "morphTargetInfluences" ) {
+
 				// potential optimization, skip this if propertyIndex is already an integer, and convert the integer string to a true integer.
 
 				// support resolving morphTarget names into indices.
@@ -36907,6 +36955,7 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 			this.propertyIndex = propertyIndex;
 
 		} else if ( nodeProperty.fromArray !== undefined && nodeProperty.toArray !== undefined ) {
+
 			// must use copy for Object3D.Euler/Quaternion
 
 			bindingType = this.BindingType.HasFromToArray;
@@ -36914,7 +36963,7 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 			this.resolvedProperty = nodeProperty;
 
 		} else if ( Array.isArray( nodeProperty ) ) {
-      
+
 			bindingType = this.BindingType.EntireArray;
 
 			this.resolvedProperty = nodeProperty;
@@ -36931,7 +36980,7 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 
 	},
 
-	unbind: function() {
+	unbind: function () {
 
 		this.node = null;
 
@@ -37014,7 +37063,7 @@ function AnimationObjectGroup( var_args ) {
 
 		objects: {
 			get total() { return scope._objects.length; },
-			get inUse() { return this.total - scope.nCachedObjects_;  }
+			get inUse() { return this.total - scope.nCachedObjects_; }
 		},
 
 		get bindingsPerObject() { return scope._bindings.length; }
@@ -37103,7 +37152,7 @@ Object.assign( AnimationObjectGroup.prototype, {
 
 				}
 
-			} else if ( objects[ index ] !== knownObject) {
+			} else if ( objects[ index ] !== knownObject ) {
 
 				console.error( "Different objects with the same UUID " +
 						"detected. Clean the caches or recreate your " +
@@ -37251,7 +37300,8 @@ Object.assign( AnimationObjectGroup.prototype, {
 
 	// Internal interface used by befriended PropertyBinding.Composite:
 
-	subscribe_: function( path, parsedPath ) {
+	subscribe_: function ( path, parsedPath ) {
+
 		// returns an array of bindings for the given path that is changed
 		// according to the contained objects in the group
 
@@ -37276,13 +37326,10 @@ Object.assign( AnimationObjectGroup.prototype, {
 		parsedPaths.push( parsedPath );
 		bindings.push( bindingsForPath );
 
-		for ( var i = nCachedObjects,
-				n = objects.length; i !== n; ++ i ) {
+		for ( var i = nCachedObjects, n = objects.length; i !== n; ++ i ) {
 
 			var object = objects[ i ];
-
-			bindingsForPath[ i ] =
-					new PropertyBinding( object, path, parsedPath );
+			bindingsForPath[ i ] = new PropertyBinding( object, path, parsedPath );
 
 		}
 
@@ -37290,7 +37337,8 @@ Object.assign( AnimationObjectGroup.prototype, {
 
 	},
 
-	unsubscribe_: function( path ) {
+	unsubscribe_: function ( path ) {
+
 		// tells the group to forget about a property path and no longer
 		// update the array previously obtained with 'subscribe_'
 
@@ -38253,7 +38301,7 @@ Object.assign( AnimationMixer.prototype, EventDispatcher.prototype, {
 
 
 		var actionByRoot = actionsForClip.actionByRoot,
-			rootUuid = ( actions._localRoot || this._root ).uuid;
+			rootUuid = ( action._localRoot || this._root ).uuid;
 
 		delete actionByRoot[ rootUuid ];
 
@@ -38948,15 +38996,15 @@ function InterleavedBuffer( array, stride ) {
 
 }
 
-Object.defineProperty( InterleavedBuffer.prototype, "needsUpdate", {
+Object.defineProperty( InterleavedBuffer.prototype, 'needsUpdate', {
 
-	set: function(value) { 
-		
-		if ( value === true ) this.version ++; 
-	
+	set: function ( value ) {
+
+		if ( value === true ) this.version ++;
+
 	}
 
-});
+} );
 
 Object.assign( InterleavedBuffer.prototype, {
 
@@ -42791,4 +42839,4 @@ function CanvasRenderer() {
 
 }
 
-export { WebGLRenderTargetCube, WebGLRenderTarget, WebGLRenderer, ShaderLib, UniformsLib, UniformsUtils, ShaderChunk, FogExp2, Fog, Scene, LensFlare, Sprite, LOD, SkinnedMesh, Skeleton, Bone, Mesh, LineSegments, Line, Points, Group, VideoTexture, DataTexture, CompressedTexture, CubeTexture, CanvasTexture, DepthTexture, Texture, CompressedTextureLoader, DataTextureLoader, CubeTextureLoader, TextureLoader, ObjectLoader, MaterialLoader, BufferGeometryLoader, DefaultLoadingManager, LoadingManager, JSONLoader, ImageLoader, FontLoader, FileLoader, Loader, Cache, AudioLoader, SpotLightShadow, SpotLight, PointLight, RectAreaLight, HemisphereLight, DirectionalLightShadow, DirectionalLight, AmbientLight, LightShadow, Light, StereoCamera, PerspectiveCamera, OrthographicCamera, CubeCamera, Camera, AudioListener, PositionalAudio, AudioContext, AudioAnalyser, Audio, VectorKeyframeTrack, StringKeyframeTrack, QuaternionKeyframeTrack, NumberKeyframeTrack, ColorKeyframeTrack, BooleanKeyframeTrack, PropertyMixer, PropertyBinding, KeyframeTrack, AnimationUtils, AnimationObjectGroup, AnimationMixer, AnimationClip, Uniform, InstancedBufferGeometry, BufferGeometry, GeometryIdCount, Geometry, InterleavedBufferAttribute, InstancedInterleavedBuffer, InterleavedBuffer, InstancedBufferAttribute, Face3, Object3D, Raycaster, Layers, EventDispatcher, Clock, QuaternionLinearInterpolant, LinearInterpolant, DiscreteInterpolant, CubicInterpolant, Interpolant, Triangle, _Math as Math, Spherical, Cylindrical, Plane, Frustum, Sphere, Ray, Matrix4, Matrix3, Box3, Box2, Line3, Euler, Vector4, Vector3, Vector2, Quaternion, Color, MorphBlendMesh, ImmediateRenderObject, VertexNormalsHelper, SpotLightHelper, SkeletonHelper, PointLightHelper, RectAreaLightHelper, HemisphereLightHelper, GridHelper, PolarGridHelper, FaceNormalsHelper, DirectionalLightHelper, CameraHelper, BoxHelper, ArrowHelper, AxisHelper, CatmullRomCurve3, CubicBezierCurve3, QuadraticBezierCurve3, LineCurve3, ArcCurve, EllipseCurve, SplineCurve, CubicBezierCurve, QuadraticBezierCurve, LineCurve, Shape, Path, ShapePath, Font, CurvePath, Curve, ShapeUtils, SceneUtils, WireframeGeometry, ParametricGeometry, ParametricBufferGeometry, TetrahedronGeometry, TetrahedronBufferGeometry, OctahedronGeometry, OctahedronBufferGeometry, IcosahedronGeometry, IcosahedronBufferGeometry, DodecahedronGeometry, DodecahedronBufferGeometry, PolyhedronGeometry, PolyhedronBufferGeometry, TubeGeometry, TubeBufferGeometry, TorusKnotGeometry, TorusKnotBufferGeometry, TorusGeometry, TorusBufferGeometry, TextGeometry, SphereGeometry, SphereBufferGeometry, RingGeometry, RingBufferGeometry, PlaneGeometry, PlaneBufferGeometry, LatheGeometry, LatheBufferGeometry, ShapeGeometry, ShapeBufferGeometry, ExtrudeGeometry, EdgesGeometry, ConeGeometry, ConeBufferGeometry, CylinderGeometry, CylinderBufferGeometry, CircleGeometry, CircleBufferGeometry, BoxGeometry, BoxBufferGeometry, ShadowMaterial, SpriteMaterial, RawShaderMaterial, ShaderMaterial, PointsMaterial, MultiMaterial, MeshPhysicalMaterial, MeshStandardMaterial, MeshPhongMaterial, MeshToonMaterial, MeshNormalMaterial, MeshLambertMaterial, MeshDepthMaterial, MeshBasicMaterial, LineDashedMaterial, LineBasicMaterial, Material, Float64BufferAttribute, Float32BufferAttribute, Uint32BufferAttribute, Int32BufferAttribute, Uint16BufferAttribute, Int16BufferAttribute, Uint8ClampedBufferAttribute, Uint8BufferAttribute, Int8BufferAttribute, BufferAttribute, REVISION, MOUSE, CullFaceNone, CullFaceBack, CullFaceFront, CullFaceFrontBack, FrontFaceDirectionCW, FrontFaceDirectionCCW, BasicShadowMap, PCFShadowMap, PCFSoftShadowMap, FrontSide, BackSide, DoubleSide, FlatShading, SmoothShading, NoColors, FaceColors, VertexColors, NoBlending, NormalBlending, AdditiveBlending, SubtractiveBlending, MultiplyBlending, CustomBlending, AddEquation, SubtractEquation, ReverseSubtractEquation, MinEquation, MaxEquation, ZeroFactor, OneFactor, SrcColorFactor, OneMinusSrcColorFactor, SrcAlphaFactor, OneMinusSrcAlphaFactor, DstAlphaFactor, OneMinusDstAlphaFactor, DstColorFactor, OneMinusDstColorFactor, SrcAlphaSaturateFactor, NeverDepth, AlwaysDepth, LessDepth, LessEqualDepth, EqualDepth, GreaterEqualDepth, GreaterDepth, NotEqualDepth, MultiplyOperation, MixOperation, AddOperation, NoToneMapping, LinearToneMapping, ReinhardToneMapping, Uncharted2ToneMapping, CineonToneMapping, UVMapping, CubeReflectionMapping, CubeRefractionMapping, EquirectangularReflectionMapping, EquirectangularRefractionMapping, SphericalReflectionMapping, CubeUVReflectionMapping, CubeUVRefractionMapping, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping, NearestFilter, NearestMipMapNearestFilter, NearestMipMapLinearFilter, LinearFilter, LinearMipMapNearestFilter, LinearMipMapLinearFilter, UnsignedByteType, ByteType, ShortType, UnsignedShortType, IntType, UnsignedIntType, FloatType, HalfFloatType, UnsignedShort4444Type, UnsignedShort5551Type, UnsignedShort565Type, UnsignedInt248Type, AlphaFormat, RGBFormat, RGBAFormat, LuminanceFormat, LuminanceAlphaFormat, RGBEFormat, DepthFormat, DepthStencilFormat, RGB_S3TC_DXT1_Format, RGBA_S3TC_DXT1_Format, RGBA_S3TC_DXT3_Format, RGBA_S3TC_DXT5_Format, RGB_PVRTC_4BPPV1_Format, RGB_PVRTC_2BPPV1_Format, RGBA_PVRTC_4BPPV1_Format, RGBA_PVRTC_2BPPV1_Format, RGB_ETC1_Format, LoopOnce, LoopRepeat, LoopPingPong, InterpolateDiscrete, InterpolateLinear, InterpolateSmooth, ZeroCurvatureEnding, ZeroSlopeEnding, WrapAroundEnding, TrianglesDrawMode, TriangleStripDrawMode, TriangleFanDrawMode, LinearEncoding, sRGBEncoding, GammaEncoding, RGBEEncoding, LogLuvEncoding, RGBM7Encoding, RGBM16Encoding, RGBDEncoding, BasicDepthPacking, RGBADepthPacking, BoxGeometry as CubeGeometry, Face4, LineStrip, LinePieces, MeshFaceMaterial, PointCloud, Particle, ParticleSystem, PointCloudMaterial, ParticleBasicMaterial, ParticleSystemMaterial, Vertex, DynamicBufferAttribute, Int8Attribute, Uint8Attribute, Uint8ClampedAttribute, Int16Attribute, Uint16Attribute, Int32Attribute, Uint32Attribute, Float32Attribute, Float64Attribute, ClosedSplineCurve3, SplineCurve3, Spline, BoundingBoxHelper, EdgesHelper, WireframeHelper, XHRLoader, BinaryTextureLoader, GeometryUtils, ImageUtils, Projector, CanvasRenderer };
+export { WebGLRenderTargetCube, WebGLRenderTarget, WebGLRenderer, ShaderLib, UniformsLib, UniformsUtils, ShaderChunk, FogExp2, Fog, Scene, LensFlare, Sprite, LOD, SkinnedMesh, Skeleton, Bone, Mesh, LineSegments, LineLoop, Line, Points, Group, VideoTexture, DataTexture, CompressedTexture, CubeTexture, CanvasTexture, DepthTexture, Texture, CompressedTextureLoader, DataTextureLoader, CubeTextureLoader, TextureLoader, ObjectLoader, MaterialLoader, BufferGeometryLoader, DefaultLoadingManager, LoadingManager, JSONLoader, ImageLoader, FontLoader, FileLoader, Loader, Cache, AudioLoader, SpotLightShadow, SpotLight, PointLight, RectAreaLight, HemisphereLight, DirectionalLightShadow, DirectionalLight, AmbientLight, LightShadow, Light, StereoCamera, PerspectiveCamera, OrthographicCamera, CubeCamera, Camera, AudioListener, PositionalAudio, AudioContext, AudioAnalyser, Audio, VectorKeyframeTrack, StringKeyframeTrack, QuaternionKeyframeTrack, NumberKeyframeTrack, ColorKeyframeTrack, BooleanKeyframeTrack, PropertyMixer, PropertyBinding, KeyframeTrack, AnimationUtils, AnimationObjectGroup, AnimationMixer, AnimationClip, Uniform, InstancedBufferGeometry, BufferGeometry, GeometryIdCount, Geometry, InterleavedBufferAttribute, InstancedInterleavedBuffer, InterleavedBuffer, InstancedBufferAttribute, Face3, Object3D, Raycaster, Layers, EventDispatcher, Clock, QuaternionLinearInterpolant, LinearInterpolant, DiscreteInterpolant, CubicInterpolant, Interpolant, Triangle, _Math as Math, Spherical, Cylindrical, Plane, Frustum, Sphere, Ray, Matrix4, Matrix3, Box3, Box2, Line3, Euler, Vector4, Vector3, Vector2, Quaternion, Color, MorphBlendMesh, ImmediateRenderObject, VertexNormalsHelper, SpotLightHelper, SkeletonHelper, PointLightHelper, RectAreaLightHelper, HemisphereLightHelper, GridHelper, PolarGridHelper, FaceNormalsHelper, DirectionalLightHelper, CameraHelper, BoxHelper, ArrowHelper, AxisHelper, CatmullRomCurve3, CubicBezierCurve3, QuadraticBezierCurve3, LineCurve3, ArcCurve, EllipseCurve, SplineCurve, CubicBezierCurve, QuadraticBezierCurve, LineCurve, Shape, Path, ShapePath, Font, CurvePath, Curve, ShapeUtils, SceneUtils, WireframeGeometry, ParametricGeometry, ParametricBufferGeometry, TetrahedronGeometry, TetrahedronBufferGeometry, OctahedronGeometry, OctahedronBufferGeometry, IcosahedronGeometry, IcosahedronBufferGeometry, DodecahedronGeometry, DodecahedronBufferGeometry, PolyhedronGeometry, PolyhedronBufferGeometry, TubeGeometry, TubeBufferGeometry, TorusKnotGeometry, TorusKnotBufferGeometry, TorusGeometry, TorusBufferGeometry, TextGeometry, SphereGeometry, SphereBufferGeometry, RingGeometry, RingBufferGeometry, PlaneGeometry, PlaneBufferGeometry, LatheGeometry, LatheBufferGeometry, ShapeGeometry, ShapeBufferGeometry, ExtrudeGeometry, EdgesGeometry, ConeGeometry, ConeBufferGeometry, CylinderGeometry, CylinderBufferGeometry, CircleGeometry, CircleBufferGeometry, BoxGeometry, BoxBufferGeometry, ShadowMaterial, SpriteMaterial, RawShaderMaterial, ShaderMaterial, PointsMaterial, MultiMaterial, MeshPhysicalMaterial, MeshStandardMaterial, MeshPhongMaterial, MeshToonMaterial, MeshNormalMaterial, MeshLambertMaterial, MeshDepthMaterial, MeshBasicMaterial, LineDashedMaterial, LineBasicMaterial, Material, Float64BufferAttribute, Float32BufferAttribute, Uint32BufferAttribute, Int32BufferAttribute, Uint16BufferAttribute, Int16BufferAttribute, Uint8ClampedBufferAttribute, Uint8BufferAttribute, Int8BufferAttribute, BufferAttribute, REVISION, MOUSE, CullFaceNone, CullFaceBack, CullFaceFront, CullFaceFrontBack, FrontFaceDirectionCW, FrontFaceDirectionCCW, BasicShadowMap, PCFShadowMap, PCFSoftShadowMap, FrontSide, BackSide, DoubleSide, FlatShading, SmoothShading, NoColors, FaceColors, VertexColors, NoBlending, NormalBlending, AdditiveBlending, SubtractiveBlending, MultiplyBlending, CustomBlending, AddEquation, SubtractEquation, ReverseSubtractEquation, MinEquation, MaxEquation, ZeroFactor, OneFactor, SrcColorFactor, OneMinusSrcColorFactor, SrcAlphaFactor, OneMinusSrcAlphaFactor, DstAlphaFactor, OneMinusDstAlphaFactor, DstColorFactor, OneMinusDstColorFactor, SrcAlphaSaturateFactor, NeverDepth, AlwaysDepth, LessDepth, LessEqualDepth, EqualDepth, GreaterEqualDepth, GreaterDepth, NotEqualDepth, MultiplyOperation, MixOperation, AddOperation, NoToneMapping, LinearToneMapping, ReinhardToneMapping, Uncharted2ToneMapping, CineonToneMapping, UVMapping, CubeReflectionMapping, CubeRefractionMapping, EquirectangularReflectionMapping, EquirectangularRefractionMapping, SphericalReflectionMapping, CubeUVReflectionMapping, CubeUVRefractionMapping, RepeatWrapping, ClampToEdgeWrapping, MirroredRepeatWrapping, NearestFilter, NearestMipMapNearestFilter, NearestMipMapLinearFilter, LinearFilter, LinearMipMapNearestFilter, LinearMipMapLinearFilter, UnsignedByteType, ByteType, ShortType, UnsignedShortType, IntType, UnsignedIntType, FloatType, HalfFloatType, UnsignedShort4444Type, UnsignedShort5551Type, UnsignedShort565Type, UnsignedInt248Type, AlphaFormat, RGBFormat, RGBAFormat, LuminanceFormat, LuminanceAlphaFormat, RGBEFormat, DepthFormat, DepthStencilFormat, RGB_S3TC_DXT1_Format, RGBA_S3TC_DXT1_Format, RGBA_S3TC_DXT3_Format, RGBA_S3TC_DXT5_Format, RGB_PVRTC_4BPPV1_Format, RGB_PVRTC_2BPPV1_Format, RGBA_PVRTC_4BPPV1_Format, RGBA_PVRTC_2BPPV1_Format, RGB_ETC1_Format, LoopOnce, LoopRepeat, LoopPingPong, InterpolateDiscrete, InterpolateLinear, InterpolateSmooth, ZeroCurvatureEnding, ZeroSlopeEnding, WrapAroundEnding, TrianglesDrawMode, TriangleStripDrawMode, TriangleFanDrawMode, LinearEncoding, sRGBEncoding, GammaEncoding, RGBEEncoding, LogLuvEncoding, RGBM7Encoding, RGBM16Encoding, RGBDEncoding, BasicDepthPacking, RGBADepthPacking, BoxGeometry as CubeGeometry, Face4, LineStrip, LinePieces, MeshFaceMaterial, PointCloud, Particle, ParticleSystem, PointCloudMaterial, ParticleBasicMaterial, ParticleSystemMaterial, Vertex, DynamicBufferAttribute, Int8Attribute, Uint8Attribute, Uint8ClampedAttribute, Int16Attribute, Uint16Attribute, Int32Attribute, Uint32Attribute, Float32Attribute, Float64Attribute, ClosedSplineCurve3, SplineCurve3, Spline, BoundingBoxHelper, EdgesHelper, WireframeHelper, XHRLoader, BinaryTextureLoader, GeometryUtils, ImageUtils, Projector, CanvasRenderer };
