@@ -1,11 +1,17 @@
 /**
  * @author zz85 / https://github.com/zz85
+ * @author Mugen87 / https://github.com/Mugen87
  *
  * Parametric Surfaces Geometry
  * based on the brilliant article by @prideout http://prideout.net/blog/?p=44
  */
 
 import { Geometry } from '../core/Geometry';
+import { BufferGeometry } from '../core/BufferGeometry';
+import { Float32BufferAttribute } from '../core/BufferAttribute';
+import { Vector3 } from '../math/Vector3';
+
+// ParametricGeometry
 
 function ParametricGeometry( func, slices, stacks ) {
 
@@ -27,16 +33,7 @@ function ParametricGeometry( func, slices, stacks ) {
 ParametricGeometry.prototype = Object.create( Geometry.prototype );
 ParametricGeometry.prototype.constructor = ParametricGeometry;
 
-/**
- * @author Mugen87 / https://github.com/Mugen87
- *
- * Parametric Surfaces Geometry
- * based on the brilliant article by @prideout http://prideout.net/blog/?p=44
- */
-
-import { BufferGeometry } from '../core/BufferGeometry';
-import { Float32BufferAttribute } from '../core/BufferAttribute';
-import { Vector3 } from '../math/Vector3';
+// ParametricBufferGeometry
 
 function ParametricBufferGeometry( func, slices, stacks ) {
 
@@ -58,7 +55,11 @@ function ParametricBufferGeometry( func, slices, stacks ) {
 	var uvs = [];
 
 	var EPS = 0.00001;
-	var pu = new Vector3(), pv = new Vector3(), normal = new Vector3();
+
+	var normal = new Vector3();
+
+	var p0 = new Vector3(), p1 = new Vector3();
+	var pu = new Vector3(), pv = new Vector3();
 
 	var i, j;
 
@@ -74,28 +75,36 @@ function ParametricBufferGeometry( func, slices, stacks ) {
 
 			var u = j / slices;
 
-			var p = func( u, v );
-			vertices.push( p.x, p.y, p.z );
+			// vertex
+
+			p0 = func( u, v, p0 );
+			vertices.push( p0.x, p0.y, p0.z );
+
+			// normal
 
 			// approximate tangent vectors via finite differences
 
 			if ( u - EPS >= 0 ) {
 
-				pu.subVectors( p, func( u - EPS, v ) );
+				p1 = func( u - EPS, v, p1 );
+				pu.subVectors( p0, p1 );
 
 			} else {
 
-				pu.subVectors( func( u + EPS, v ), p );
+				p1 = func( u + EPS, v, p1 );
+				pu.subVectors( p1, p0 );
 
 			}
 
 			if ( v - EPS >= 0 ) {
 
-				pv.subVectors( p, func( u, v - EPS ) );
+				p1 = func( u, v - EPS, p1 );
+				pv.subVectors( p0, p1 );
 
 			} else {
 
-				pv.subVectors( func( u, v + EPS ), p );
+				p1 = func( u, v + EPS, p1 );
+				pv.subVectors( p1, p0 );
 
 			}
 
@@ -103,6 +112,8 @@ function ParametricBufferGeometry( func, slices, stacks ) {
 
 			normal.crossVectors( pu, pv ).normalize();
 			normals.push( normal.x, normal.y, normal.z );
+
+			// uv
 
 			uvs.push( u, v );
 
@@ -141,5 +152,6 @@ function ParametricBufferGeometry( func, slices, stacks ) {
 
 ParametricBufferGeometry.prototype = Object.create( BufferGeometry.prototype );
 ParametricBufferGeometry.prototype.constructor = ParametricBufferGeometry;
+
 
 export { ParametricGeometry, ParametricBufferGeometry };
