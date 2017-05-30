@@ -5589,7 +5589,7 @@ var beginnormal_vertex = "\nvec3 objectNormal = vec3( normal );\n";
 
 var bsdfs = "float punctualLightIntensityToIrradianceFactor( const in float lightDistance, const in float cutoffDistance, const in float decayExponent ) {\n\tif( decayExponent > 0.0 ) {\n#if defined ( PHYSICALLY_CORRECT_LIGHTS )\n\t\tfloat distanceFalloff = 1.0 / max( pow( lightDistance, decayExponent ), 0.01 );\n\t\tfloat maxDistanceCutoffFactor = pow2( saturate( 1.0 - pow4( lightDistance / cutoffDistance ) ) );\n\t\treturn distanceFalloff * maxDistanceCutoffFactor;\n#else\n\t\treturn pow( saturate( -lightDistance / cutoffDistance + 1.0 ), decayExponent );\n#endif\n\t}\n\treturn 1.0;\n}\nvec3 BRDF_Diffuse_Lambert( const in vec3 diffuseColor ) {\n\treturn RECIPROCAL_PI * diffuseColor;\n}\nvec3 F_Schlick( const in vec3 specularColor, const in float dotLH ) {\n\tfloat fresnel = exp2( ( -5.55473 * dotLH - 6.98316 ) * dotLH );\n\treturn ( 1.0 - specularColor ) * fresnel + specularColor;\n}\nfloat G_GGX_Smith( const in float alpha, const in float dotNL, const in float dotNV ) {\n\tfloat a2 = pow2( alpha );\n\tfloat gl = dotNL + sqrt( a2 + ( 1.0 - a2 ) * pow2( dotNL ) );\n\tfloat gv = dotNV + sqrt( a2 + ( 1.0 - a2 ) * pow2( dotNV ) );\n\treturn 1.0 / ( gl * gv );\n}\nfloat G_GGX_SmithCorrelated( const in float alpha, const in float dotNL, const in float dotNV ) {\n\tfloat a2 = pow2( alpha );\n\tfloat gv = dotNL * sqrt( a2 + ( 1.0 - a2 ) * pow2( dotNV ) );\n\tfloat gl = dotNV * sqrt( a2 + ( 1.0 - a2 ) * pow2( dotNL ) );\n\treturn 0.5 / max( gv + gl, EPSILON );\n}\nfloat D_GGX( const in float alpha, const in float dotNH ) {\n\tfloat a2 = pow2( alpha );\n\tfloat denom = pow2( dotNH ) * ( a2 - 1.0 ) + 1.0;\n\treturn RECIPROCAL_PI * a2 / pow2( denom );\n}\nvec3 BRDF_Specular_GGX( const in IncidentLight incidentLight, const in GeometricContext geometry, const in vec3 specularColor, const in float roughness ) {\n\tfloat alpha = pow2( roughness );\n\tvec3 halfDir = normalize( incidentLight.direction + geometry.viewDir );\n\tfloat dotNL = saturate( dot( geometry.normal, incidentLight.direction ) );\n\tfloat dotNV = saturate( dot( geometry.normal, geometry.viewDir ) );\n\tfloat dotNH = saturate( dot( geometry.normal, halfDir ) );\n\tfloat dotLH = saturate( dot( incidentLight.direction, halfDir ) );\n\tvec3 F = F_Schlick( specularColor, dotLH );\n\tfloat G = G_GGX_SmithCorrelated( alpha, dotNL, dotNV );\n\tfloat D = D_GGX( alpha, dotNH );\n\treturn F * ( G * D );\n}\nvec2 LTC_Uv( const in vec3 N, const in vec3 V, const in float roughness ) {\n\tconst float LUT_SIZE  = 64.0;\n\tconst float LUT_SCALE = ( LUT_SIZE - 1.0 ) / LUT_SIZE;\n\tconst float LUT_BIAS  = 0.5 / LUT_SIZE;\n\tfloat theta = acos( dot( N, V ) );\n\tvec2 uv = vec2(\n\t\tsqrt( saturate( roughness ) ),\n\t\tsaturate( theta / ( 0.5 * PI ) ) );\n\tuv = uv * LUT_SCALE + LUT_BIAS;\n\treturn uv;\n}\nfloat LTC_ClippedSphereFormFactor( const in vec3 f ) {\n\tfloat l = length( f );\n\treturn max( ( l * l + f.z ) / ( l + 1.0 ), 0.0 );\n}\nvec3 LTC_EdgeVectorFormFactor( const in vec3 v1, const in vec3 v2 ) {\n\tfloat x = dot( v1, v2 );\n\tfloat y = abs( x );\n\tfloat a = 0.86267 + (0.49788 + 0.01436 * y ) * y;\n\tfloat b = 3.45068 + (4.18814 + y) * y;\n\tfloat v = a / b;\n\tfloat theta_sintheta = (x > 0.0) ? v : 0.5 * inversesqrt( 1.0 - x * x ) - v;\n\treturn cross( v1, v2 ) * theta_sintheta;\n}\nvec3 LTC_Evaluate( const in vec3 N, const in vec3 V, const in vec3 P, const in mat3 mInv, const in vec3 rectCoords[ 4 ] ) {\n\tvec3 v1 = rectCoords[ 1 ] - rectCoords[ 0 ];\n\tvec3 v2 = rectCoords[ 3 ] - rectCoords[ 0 ];\n\tvec3 lightNormal = cross( v1, v2 );\n\tif( dot( lightNormal, P - rectCoords[ 0 ] ) < 0.0 ) return vec3( 0.0 );\n\tvec3 T1, T2;\n\tT1 = normalize( V - N * dot( V, N ) );\n\tT2 = - cross( N, T1 );\n\tmat3 mat = mInv * transpose( mat3( T1, T2, N ) );\n\tvec3 coords[ 4 ];\n\tcoords[ 0 ] = mat * ( rectCoords[ 0 ] - P );\n\tcoords[ 1 ] = mat * ( rectCoords[ 1 ] - P );\n\tcoords[ 2 ] = mat * ( rectCoords[ 2 ] - P );\n\tcoords[ 3 ] = mat * ( rectCoords[ 3 ] - P );\n\tcoords[ 0 ] = normalize( coords[ 0 ] );\n\tcoords[ 1 ] = normalize( coords[ 1 ] );\n\tcoords[ 2 ] = normalize( coords[ 2 ] );\n\tcoords[ 3 ] = normalize( coords[ 3 ] );\n\tvec3 vectorFormFactor = vec3( 0.0 );\n\tvectorFormFactor += LTC_EdgeVectorFormFactor( coords[ 0 ], coords[ 1 ] );\n\tvectorFormFactor += LTC_EdgeVectorFormFactor( coords[ 1 ], coords[ 2 ] );\n\tvectorFormFactor += LTC_EdgeVectorFormFactor( coords[ 2 ], coords[ 3 ] );\n\tvectorFormFactor += LTC_EdgeVectorFormFactor( coords[ 3 ], coords[ 0 ] );\n\tvec3 result = vec3( LTC_ClippedSphereFormFactor( vectorFormFactor ) );\n\treturn result;\n}\nvec3 BRDF_Specular_GGX_Environment( const in GeometricContext geometry, const in vec3 specularColor, const in float roughness ) {\n\tfloat dotNV = saturate( dot( geometry.normal, geometry.viewDir ) );\n\tconst vec4 c0 = vec4( - 1, - 0.0275, - 0.572, 0.022 );\n\tconst vec4 c1 = vec4( 1, 0.0425, 1.04, - 0.04 );\n\tvec4 r = roughness * c0 + c1;\n\tfloat a004 = min( r.x * r.x, exp2( - 9.28 * dotNV ) ) * r.x + r.y;\n\tvec2 AB = vec2( -1.04, 1.04 ) * a004 + r.zw;\n\treturn specularColor * AB.x + AB.y;\n}\nfloat G_BlinnPhong_Implicit( ) {\n\treturn 0.25;\n}\nfloat D_BlinnPhong( const in float shininess, const in float dotNH ) {\n\treturn RECIPROCAL_PI * ( shininess * 0.5 + 1.0 ) * pow( dotNH, shininess );\n}\nvec3 BRDF_Specular_BlinnPhong( const in IncidentLight incidentLight, const in GeometricContext geometry, const in vec3 specularColor, const in float shininess ) {\n\tvec3 halfDir = normalize( incidentLight.direction + geometry.viewDir );\n\tfloat dotNH = saturate( dot( geometry.normal, halfDir ) );\n\tfloat dotLH = saturate( dot( incidentLight.direction, halfDir ) );\n\tvec3 F = F_Schlick( specularColor, dotLH );\n\tfloat G = G_BlinnPhong_Implicit( );\n\tfloat D = D_BlinnPhong( shininess, dotNH );\n\treturn F * ( G * D );\n}\nfloat GGXRoughnessToBlinnExponent( const in float ggxRoughness ) {\n\treturn ( 2.0 / pow2( ggxRoughness + 0.0001 ) - 2.0 );\n}\nfloat BlinnExponentToGGXRoughness( const in float blinnExponent ) {\n\treturn sqrt( 2.0 / ( blinnExponent + 2.0 ) );\n}\n";
 
-var bumpmap_pars_fragment = "#ifdef USE_BUMPMAP\n\tuniform sampler2D bumpMap;\n\tuniform float bumpScale;\n\tvec2 dHdxy_fwd() {\n\t\tvec2 dSTdx = dFdx( vUv );\n\t\tvec2 dSTdy = dFdy( vUv );\n\t\tfloat Hll = bumpScale * texture2D( bumpMap, vUv ).x;\n\t\tfloat dBx = bumpScale * texture2D( bumpMap, vUv + dSTdx ).x - Hll;\n\t\tfloat dBy = bumpScale * texture2D( bumpMap, vUv + dSTdy ).x - Hll;\n\t\treturn vec2( dBx, dBy );\n\t}\n\tvec3 perturbNormalArb( vec3 surf_pos, vec3 surf_norm, vec2 dHdxy ) {\n\t\tvec3 vSigmaX = dFdx( surf_pos );\n\t\tvec3 vSigmaY = dFdy( surf_pos );\n\t\tvec3 vN = surf_norm;\n\t\tvec3 R1 = cross( vSigmaY, vN );\n\t\tvec3 R2 = cross( vN, vSigmaX );\n\t\tfloat fDet = dot( vSigmaX, R1 );\n\t\tvec3 vGrad = sign( fDet ) * ( dHdxy.x * R1 + dHdxy.y * R2 );\n\t\treturn normalize( abs( fDet ) * surf_norm - vGrad );\n\t}\n#endif\n";
+var bumpmap_pars_fragment = "#ifdef USE_BUMPMAP\n\tuniform sampler2D bumpMap;\n\tuniform float bumpScale;\n\tvec2 dHdxy_fwd() {\n\t\tvec2 dSTdx = dFdx( vUv );\n\t\tvec2 dSTdy = dFdy( vUv );\n\t\tfloat Hll = bumpScale * texture2D( bumpMap, vUv ).x;\n\t\tfloat dBx = bumpScale * texture2D( bumpMap, vUv + dSTdx ).x - Hll;\n\t\tfloat dBy = bumpScale * texture2D( bumpMap, vUv + dSTdy ).x - Hll;\n\t\treturn vec2( dBx, dBy );\n\t}\n\tvec3 perturbNormalArb( vec3 surf_pos, vec3 surf_norm, vec2 dHdxy ) {\n\t\tvec3 vSigmaX = vec3( dFdx( surf_pos.x ), dFdx( surf_pos.y ), dFdx( surf_pos.z ) );\n\t\tvec3 vSigmaY = vec3( dFdy( surf_pos.x ), dFdy( surf_pos.y ), dFdy( surf_pos.z ) );\n\t\tvec3 vN = surf_norm;\n\t\tvec3 R1 = cross( vSigmaY, vN );\n\t\tvec3 R2 = cross( vN, vSigmaX );\n\t\tfloat fDet = dot( vSigmaX, R1 );\n\t\tvec3 vGrad = sign( fDet ) * ( dHdxy.x * R1 + dHdxy.y * R2 );\n\t\treturn normalize( abs( fDet ) * surf_norm - vGrad );\n\t}\n#endif\n";
 
 var clipping_planes_fragment = "#if NUM_CLIPPING_PLANES > 0\n\tfor ( int i = 0; i < UNION_CLIPPING_PLANES; ++ i ) {\n\t\tvec4 plane = clippingPlanes[ i ];\n\t\tif ( dot( vViewPosition, plane.xyz ) > plane.w ) discard;\n\t}\n\t\t\n\t#if UNION_CLIPPING_PLANES < NUM_CLIPPING_PLANES\n\t\tbool clipped = true;\n\t\tfor ( int i = UNION_CLIPPING_PLANES; i < NUM_CLIPPING_PLANES; ++ i ) {\n\t\t\tvec4 plane = clippingPlanes[ i ];\n\t\t\tclipped = ( dot( vViewPosition, plane.xyz ) > plane.w ) && clipped;\n\t\t}\n\t\tif ( clipped ) discard;\n\t\n\t#endif\n#endif\n";
 
@@ -5691,7 +5691,7 @@ var normal_flip = "#ifdef DOUBLE_SIDED\n\tfloat flipNormal = ( float( gl_FrontFa
 
 var normal_fragment = "#ifdef FLAT_SHADED\n\tvec3 fdx = vec3( dFdx( vViewPosition.x ), dFdx( vViewPosition.y ), dFdx( vViewPosition.z ) );\n\tvec3 fdy = vec3( dFdy( vViewPosition.x ), dFdy( vViewPosition.y ), dFdy( vViewPosition.z ) );\n\tvec3 normal = normalize( cross( fdx, fdy ) );\n#else\n\tvec3 normal = normalize( vNormal ) * flipNormal;\n#endif\n#ifdef USE_NORMALMAP\n\tnormal = perturbNormal2Arb( -vViewPosition, normal );\n#elif defined( USE_BUMPMAP )\n\tnormal = perturbNormalArb( -vViewPosition, normal, dHdxy_fwd() );\n#endif\n";
 
-var normalmap_pars_fragment = "#ifdef USE_NORMALMAP\n\tuniform sampler2D normalMap;\n\tuniform vec2 normalScale;\n\tvec3 perturbNormal2Arb( vec3 eye_pos, vec3 surf_norm ) {\n\t\tvec3 q0 = dFdx( eye_pos.xyz );\n\t\tvec3 q1 = dFdy( eye_pos.xyz );\n\t\tvec2 st0 = dFdx( vUv.st );\n\t\tvec2 st1 = dFdy( vUv.st );\n\t\tvec3 S = normalize( q0 * st1.t - q1 * st0.t );\n\t\tvec3 T = normalize( -q0 * st1.s + q1 * st0.s );\n\t\tvec3 N = normalize( surf_norm );\n\t\tvec3 mapN = texture2D( normalMap, vUv ).xyz * 2.0 - 1.0;\n\t\tmapN.xy = normalScale * mapN.xy;\n\t\tmat3 tsn = mat3( S, T, N );\n\t\treturn normalize( tsn * mapN );\n\t}\n#endif\n";
+var normalmap_pars_fragment = "#ifdef USE_NORMALMAP\n\tuniform sampler2D normalMap;\n\tuniform vec2 normalScale;\n\tvec3 perturbNormal2Arb( vec3 eye_pos, vec3 surf_norm ) {\n\t\tvec3 q0 = vec3( dFdx( eye_pos.x ), dFdx( eye_pos.y ), dFdx( eye_pos.z ) );\n\t\tvec3 q1 = vec3( dFdy( eye_pos.x ), dFdy( eye_pos.y ), dFdy( eye_pos.z ) );\n\t\tvec2 st0 = dFdx( vUv.st );\n\t\tvec2 st1 = dFdy( vUv.st );\n\t\tvec3 S = normalize( q0 * st1.t - q1 * st0.t );\n\t\tvec3 T = normalize( -q0 * st1.s + q1 * st0.s );\n\t\tvec3 N = normalize( surf_norm );\n\t\tvec3 mapN = texture2D( normalMap, vUv ).xyz * 2.0 - 1.0;\n\t\tmapN.xy = normalScale * mapN.xy;\n\t\tmat3 tsn = mat3( S, T, N );\n\t\treturn normalize( tsn * mapN );\n\t}\n#endif\n";
 
 var packing = "vec3 packNormalToRGB( const in vec3 normal ) {\n\treturn normalize( normal ) * 0.5 + 0.5;\n}\nvec3 unpackRGBToNormal( const in vec3 rgb ) {\n\treturn 1.0 - 2.0 * rgb.xyz;\n}\nconst float PackUpscale = 256. / 255.;const float UnpackDownscale = 255. / 256.;\nconst vec3 PackFactors = vec3( 256. * 256. * 256., 256. * 256.,  256. );\nconst vec4 UnpackFactors = UnpackDownscale / vec4( PackFactors, 1. );\nconst float ShiftRight8 = 1. / 256.;\nvec4 packDepthToRGBA( const in float v ) {\n\tvec4 r = vec4( fract( v * PackFactors ), v );\n\tr.yzw -= r.xyz * ShiftRight8;\treturn r * PackUpscale;\n}\nfloat unpackRGBAToDepth( const in vec4 v ) {\n\treturn dot( v, UnpackFactors );\n}\nfloat viewZToOrthographicDepth( const in float viewZ, const in float near, const in float far ) {\n\treturn ( viewZ + near ) / ( near - far );\n}\nfloat orthographicDepthToViewZ( const in float linearClipZ, const in float near, const in float far ) {\n\treturn linearClipZ * ( near - far ) - near;\n}\nfloat viewZToPerspectiveDepth( const in float viewZ, const in float near, const in float far ) {\n\treturn (( near + viewZ ) * far ) / (( far - near ) * viewZ );\n}\nfloat perspectiveDepthToViewZ( const in float invClipZ, const in float near, const in float far ) {\n\treturn ( near * far ) / ( ( far - near ) * invClipZ - far );\n}\n";
 
@@ -11714,6 +11714,7 @@ function BufferAttribute( array, itemSize, normalized ) {
 	}
 
 	this.uuid = _Math.generateUUID();
+	this.name = '';
 
 	this.array = array;
 	this.itemSize = itemSize;
@@ -14958,17 +14959,53 @@ Mesh.prototype = Object.assign( Object.create( Object3D.prototype ), {
 
 	updateMorphTargets: function () {
 
-		var morphTargets = this.geometry.morphTargets;
+		var geometry = this.geometry;
+		var m, ml, name;
 
-		if ( morphTargets !== undefined && morphTargets.length > 0 ) {
+		if ( geometry.isBufferGeometry ) {
 
-			this.morphTargetInfluences = [];
-			this.morphTargetDictionary = {};
+			var morphAttributes = geometry.morphAttributes;
+			var keys = Object.keys( morphAttributes );
 
-			for ( var m = 0, ml = morphTargets.length; m < ml; m ++ ) {
+			if ( keys.length > 0 ) {
 
-				this.morphTargetInfluences.push( 0 );
-				this.morphTargetDictionary[ morphTargets[ m ].name ] = m;
+				var morphAttribute = morphAttributes[ keys[ 0 ] ];
+
+				if ( morphAttribute !== undefined ) {
+
+					this.morphTargetInfluences = [];
+					this.morphTargetDictionary = {};
+
+					for ( m = 0, ml = morphAttribute.length; m < ml; m ++ ) {
+
+						name = morphAttribute[ m ].name || String( m );
+
+						this.morphTargetInfluences.push( 0 );
+						this.morphTargetDictionary[ name ] = m;
+
+					}
+
+				}
+
+			}
+
+		} else {
+
+			var morphTargets = geometry.morphTargets;
+
+			if ( morphTargets !== undefined && morphTargets.length > 0 ) {
+
+				this.morphTargetInfluences = [];
+				this.morphTargetDictionary = {};
+
+				for ( m = 0, ml = morphTargets.length; m < ml; m ++ ) {
+
+					name = morphTargets[ m ].name || String( m );
+
+					this.morphTargetInfluences.push( 0 );
+					this.morphTargetDictionary[ name ] = m;
+
+				}
 
 			}
 
@@ -15987,7 +16024,7 @@ function WebGLAttributes( gl ) {
 
 		} else if ( array instanceof Float64Array ) {
 
-			console.warn( "Unsupported data buffer format: Float64Array" );
+			console.warn( 'THREE.WebGLAttributes: Unsupported data buffer format: Float64Array.' );
 
 		} else if ( array instanceof Uint16Array ) {
 
@@ -17298,10 +17335,10 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
 	}
 
-	vertexShader = parseIncludes( vertexShader, parameters );
+	vertexShader = parseIncludes( vertexShader );
 	vertexShader = replaceLightNums( vertexShader, parameters );
 
-	fragmentShader = parseIncludes( fragmentShader, parameters );
+	fragmentShader = parseIncludes( fragmentShader );
 	fragmentShader = replaceLightNums( fragmentShader, parameters );
 
 	if ( ! material.isShaderMaterial ) {
@@ -17713,6 +17750,8 @@ function WebGLPrograms( renderer, capabilities ) {
 			array.push( parameters[ parameterNames[ i ] ] );
 
 		}
+
+		array.push( renderer.gammaOutput );
 
 		return array.join();
 
@@ -19410,7 +19449,7 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
 
 		} catch ( error ) {
 
-			console.error( error );
+			console.error( 'THREE.WebGLState:', error );
 
 		}
 
@@ -19424,7 +19463,7 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
 
 		} catch ( error ) {
 
-			console.error( error );
+			console.error( 'THREE.WebGLState:', error );
 
 		}
 
@@ -22343,7 +22382,7 @@ function WebGLRenderer( parameters ) {
 
 		if ( textureUnit >= capabilities.maxTextures ) {
 
-			console.warn( 'WebGLRenderer: trying to use ' + textureUnit + ' texture units while this GPU supports only ' + capabilities.maxTextures );
+			console.warn( 'THREE.WebGLRenderer: Trying to use ' + textureUnit + ' texture units while this GPU supports only ' + capabilities.maxTextures );
 
 		}
 
@@ -31168,7 +31207,7 @@ KeyframeTrackPrototype = {
 
 			}
 
-			console.warn( message );
+			console.warn( 'THREE.KeyframeTrackPrototype:', message );
 			return;
 
 		}
@@ -31279,7 +31318,7 @@ KeyframeTrackPrototype = {
 		var valueSize = this.getValueSize();
 		if ( valueSize - Math.floor( valueSize ) !== 0 ) {
 
-			console.error( "invalid value size in track", this );
+			console.error( 'THREE.KeyframeTrackPrototype: Invalid value size in track.', this );
 			valid = false;
 
 		}
@@ -31291,7 +31330,7 @@ KeyframeTrackPrototype = {
 
 		if ( nKeys === 0 ) {
 
-			console.error( "track is empty", this );
+			console.error( 'THREE.KeyframeTrackPrototype: Track is empty.', this );
 			valid = false;
 
 		}
@@ -31304,7 +31343,7 @@ KeyframeTrackPrototype = {
 
 			if ( typeof currTime === 'number' && isNaN( currTime ) ) {
 
-				console.error( "time is not a valid number", this, i, currTime );
+				console.error( 'THREE.KeyframeTrackPrototype: Time is not a valid number.', this, i, currTime );
 				valid = false;
 				break;
 
@@ -31312,7 +31351,7 @@ KeyframeTrackPrototype = {
 
 			if ( prevTime !== null && prevTime > currTime ) {
 
-				console.error( "out of order keys", this, i, currTime, prevTime );
+				console.error( 'THREE.KeyframeTrackPrototype: Out of order keys.', this, i, currTime, prevTime );
 				valid = false;
 				break;
 
@@ -31332,7 +31371,7 @@ KeyframeTrackPrototype = {
 
 					if ( isNaN( value ) ) {
 
-						console.error( "value is not a valid number", this, i, value );
+						console.error( 'THREE.KeyframeTrackPrototype: Value is not a valid number.', this, i, value );
 						valid = false;
 						break;
 
@@ -32031,7 +32070,7 @@ Object.assign( AnimationClip, {
 
 		if ( ! animation ) {
 
-			console.error( "  no animation in JSONLoader data" );
+			console.error( 'THREE.AnimationClip: No animation in JSONLoader data.' );
 			return null;
 
 		}
@@ -37208,7 +37247,7 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 		// ensure there is a value node
 		if ( ! targetObject ) {
 
-			console.error( "  trying to update node for track: " + this.path + " but it wasn't found." );
+			console.error( 'THREE.PropertyBinding: Trying to update node for track: ' + this.path + ' but it wasn\'t found.' );
 			return;
 
 		}
@@ -37224,14 +37263,14 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 
 					if ( ! targetObject.material ) {
 
-						console.error( '  can not bind to material as node does not have a material', this );
+						console.error( 'THREE.PropertyBinding: Can not bind to material as node does not have a material.', this );
 						return;
 
 					}
 
 					if ( ! targetObject.material.materials ) {
 
-						console.error( '  can not bind to material.materials as node.material does not have a materials array', this );
+						console.error( 'THREE.PropertyBinding: Can not bind to material.materials as node.material does not have a materials array.', this );
 						return;
 
 					}
@@ -37244,7 +37283,7 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 
 					if ( ! targetObject.skeleton ) {
 
-						console.error( '  can not bind to bones as node does not have a skeleton', this );
+						console.error( 'THREE.PropertyBinding: Can not bind to bones as node does not have a skeleton.', this );
 						return;
 
 					}
@@ -37272,7 +37311,7 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 
 					if ( targetObject[ objectName ] === undefined ) {
 
-						console.error( '  can not bind to objectName of node, undefined', this );
+						console.error( 'THREE.PropertyBinding: Can not bind to objectName of node undefined.', this );
 						return;
 
 					}
@@ -37286,7 +37325,7 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 
 				if ( targetObject[ objectIndex ] === undefined ) {
 
-					console.error( "  trying to bind to objectIndex of objectName, but is undefined:", this, targetObject );
+					console.error( 'THREE.PropertyBinding: Trying to bind to objectIndex of objectName, but is undefined.', this, targetObject );
 					return;
 
 				}
@@ -37304,8 +37343,8 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 
 			var nodeName = parsedPath.nodeName;
 
-			console.error( "  trying to update property for track: " + nodeName +
-				'.' + propertyName + " but it wasn't found.", targetObject );
+			console.error( 'THREE.PropertyBinding: Trying to update property for track: ' + nodeName +
+				'.' + propertyName + ' but it wasn\'t found.', targetObject );
 			return;
 
 		}
@@ -37339,24 +37378,49 @@ Object.assign( PropertyBinding.prototype, { // prototype, continued
 				// support resolving morphTarget names into indices.
 				if ( ! targetObject.geometry ) {
 
-					console.error( '  can not bind to morphTargetInfluences becasuse node does not have a geometry', this );
+					console.error( 'THREE.PropertyBinding: Can not bind to morphTargetInfluences because node does not have a geometry.', this );
 					return;
 
 				}
 
-				if ( ! targetObject.geometry.morphTargets ) {
+				if ( targetObject.geometry.isBufferGeometry ) {
 
-					console.error( '  can not bind to morphTargetInfluences becasuse node does not have a geometry.morphTargets', this );
-					return;
+					if ( ! targetObject.geometry.morphAttributes ) {
 
-				}
+						console.error( 'THREE.PropertyBinding: Can not bind to morphTargetInfluences because node does not have a geometry.morphAttributes.', this );
+						return;
 
-				for ( var i = 0; i < this.node.geometry.morphTargets.length; i ++ ) {
+					}
 
-					if ( targetObject.geometry.morphTargets[ i ].name === propertyIndex ) {
+					for ( var i = 0; i < this.node.geometry.morphAttributes.position.length; i ++ ) {
 
-						propertyIndex = i;
-						break;
+						if ( targetObject.geometry.morphAttributes.position[ i ].name === propertyIndex ) {
+
+							propertyIndex = i;
+							break;
+
+						}
+
+					}
+
+
+				} else {
+
+					if ( ! targetObject.geometry.morphTargets ) {
+
+						console.error( 'THREE.PropertyBinding: Can not bind to morphTargetInfluences because node does not have a geometry.morphTargets.', this );
+						return;
+
+					}
+
+					for ( var i = 0; i < this.node.geometry.morphTargets.length; i ++ ) {
+
+						if ( targetObject.geometry.morphTargets[ i ].name === propertyIndex ) {
+
+							propertyIndex = i;
+							break;
+
+						}
 
 					}
 
@@ -37569,9 +37633,8 @@ Object.assign( AnimationObjectGroup.prototype, {
 
 			} else if ( objects[ index ] !== knownObject ) {
 
-				console.error( "Different objects with the same UUID " +
-						"detected. Clean the caches or recreate your " +
-						"infrastructure when reloading scenes..." );
+				console.error( 'THREE.AnimationObjectGroup: Different objects with the same UUID ' +
+						'detected. Clean the caches or recreate your infrastructure when reloading scenes.' );
 
 			} // else the object is already where we want it to be
 
@@ -40446,6 +40509,8 @@ SpotLightHelper.prototype.update = function () {
 
 	return function update() {
 
+		this.light.updateMatrixWorld();
+
 		var coneLength = this.light.distance ? this.light.distance : 1000;
 		var coneWidth = coneLength * Math.tan( this.light.angle );
 
@@ -41635,11 +41700,13 @@ var px = new CubicPoly();
 var py = new CubicPoly();
 var pz = new CubicPoly();
 
-function CatmullRomCurve3( p /* array of Vector3 */ ) {
+function CatmullRomCurve3( points ) {
 
 	Curve.call( this );
 
-	this.points = p || [];
+	if ( points.length < 2 ) console.warn( 'THREE.CatmullRomCurve3: Points array needs at least two entries.' );
+
+	this.points = points || [];
 	this.closed = false;
 
 }
@@ -41651,8 +41718,6 @@ CatmullRomCurve3.prototype.getPoint = function ( t ) {
 
 	var points = this.points;
 	var l = points.length;
-
-	if ( l < 2 ) console.log( 'duh, you need at least 2 points' );
 
 	var point = ( l - ( this.closed ? 0 : 1 ) ) * t;
 	var intPoint = Math.floor( point );
@@ -42230,8 +42295,7 @@ Object.assign( Matrix3.prototype, {
 	},
 	multiplyVector3Array: function ( a ) {
 
-		console.warn( 'THREE.Matrix3: .multiplyVector3Array() has been renamed. Use matrix.applyToVector3Array( array ) instead.' );
-		return this.applyToVector3Array( a );
+		console.error( 'THREE.Matrix3: .multiplyVector3Array() has been removed.'  );
 
 	},
 	applyToBuffer: function( buffer, offset, length ) {
@@ -42300,8 +42364,7 @@ Object.assign( Matrix4.prototype, {
 	},
 	multiplyVector3Array: function ( a ) {
 
-		console.warn( 'THREE.Matrix4: .multiplyVector3Array() has been renamed. Use matrix.applyToVector3Array( array ) instead.' );
-		return this.applyToVector3Array( a );
+		console.error( 'THREE.Matrix4: .multiplyVector3Array() has been removed.'  );
 
 	},
 	rotateAxis: function ( v ) {

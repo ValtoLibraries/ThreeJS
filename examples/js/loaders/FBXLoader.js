@@ -100,17 +100,15 @@
 
 				if ( ! isFbxFormatASCII( FBXText ) ) {
 
-					throw new Error( 'FBXLoader: Unknown format.' );
 					self.manager.itemError( url );
-					return;
+					throw new Error( 'FBXLoader: Unknown format.' );
 
 				}
 
 				if ( getFbxVersion( FBXText ) < 7000 ) {
 
-					throw new Error( 'FBXLoader: FBX version not supported for file at ' + url + ', FileVersion: ' + getFbxVersion( FBXText ) );
 					self.manager.itemError( url );
-					return;
+					throw new Error( 'FBXLoader: FBX version not supported for file at ' + url + ', FileVersion: ' + getFbxVersion( FBXText ) );
 
 				}
 
@@ -4959,6 +4957,12 @@
 		if ( to === undefined ) to = buffer.byteLength;
 
 		var array = new Uint8Array( buffer, from, to );
+
+		if ( window.TextDecoder !== undefined ) {
+
+			return new TextDecoder().decode( array );
+
+		}
 
 		var s = '';
 
