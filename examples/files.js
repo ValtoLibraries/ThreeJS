@@ -6,6 +6,7 @@ var files = {
 		"webgl_animation_skinning_blending",
 		"webgl_animation_skinning_morph",
 		"webgl_camera",
+		"webgl_camera_array",
 		"webgl_camera_cinematic",
 		"webgl_camera_logarithmicdepthbuffer",
 		"webgl_clipping",
@@ -90,8 +91,8 @@ var files = {
 		"webgl_loader_ctm_materials",
 		"webgl_loader_draco",
 		"webgl_loader_fbx",
-		"webgl_loader_gltf",
 		"webgl_loader_gltf2",
+		"webgl_loader_imagebitmap",
 		"webgl_loader_json_blender",
 		"webgl_loader_json_claraio",
 		"webgl_loader_json_objconverter",
@@ -144,6 +145,7 @@ var files = {
 		"webgl_materials_envmaps_hdr",
 		"webgl_materials_grass",
 		"webgl_materials_lightmap",
+		"webgl_materials_modified",
 		"webgl_materials_nodes",
 		"webgl_materials_normalmap",
 		"webgl_materials_parallaxmap",
@@ -366,6 +368,7 @@ var files = {
 		"software_sandbox"
 	],
 	"svg": [
+		"svg_lines",
 		"svg_sandbox"
 	]
 };

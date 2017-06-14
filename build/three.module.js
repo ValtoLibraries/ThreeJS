@@ -167,16 +167,9 @@ Object.assign( EventDispatcher.prototype, {
 
 			event.target = this;
 
-			var array = [], i = 0;
-			var length = listenerArray.length;
+			var array = listenerArray.slice( 0 );
 
-			for ( i = 0; i < length; i ++ ) {
-
-				array[ i ] = listenerArray[ i ];
-
-			}
-
-			for ( i = 0; i < length; i ++ ) {
+			for ( var i = 0, l = array.length; i < l; i ++ ) {
 
 				array[ i ].call( this, event );
 
@@ -2158,7 +2151,7 @@ Object.assign( Quaternion.prototype, {
 
 	setFromEuler: function ( euler, update ) {
 
-		if ( ( euler && euler.isEuler ) === false ) {
+		if ( ! ( euler && euler.isEuler ) ) {
 
 			throw new Error( 'THREE.Quaternion: .setFromEuler() now expects an Euler rotation rather than a Vector3 and order.' );
 
@@ -2570,7 +2563,7 @@ Object.assign( Quaternion.prototype, {
 
 /**
  * @author mrdoob / http://mrdoob.com/
- * @author *kile / http://kile.stravaganza.org/
+ * @author kile / http://kile.stravaganza.org/
  * @author philogb / http://blog.thejit.org/
  * @author mikael emtinger / http://gomo.se/
  * @author egraether / http://egraether.com/
@@ -2804,7 +2797,7 @@ Object.assign( Vector3.prototype, {
 
 		return function applyEuler( euler ) {
 
-			if ( ( euler && euler.isEuler ) === false ) {
+			if ( ! ( euler && euler.isEuler ) ) {
 
 				console.error( 'THREE.Vector3: .applyEuler() now expects an Euler rotation rather than a Vector3 and order.' );
 
@@ -3444,7 +3437,7 @@ Object.assign( Matrix4.prototype, {
 
 	makeRotationFromEuler: function ( euler ) {
 
-		if ( ( euler && euler.isEuler ) === false ) {
+		if ( ! ( euler && euler.isEuler ) ) {
 
 			console.error( 'THREE.Matrix: .makeRotationFromEuler() now expects a Euler rotation rather than a Vector3 and order.' );
 
@@ -4508,7 +4501,7 @@ function getSingularSetter( type ) {
 		case 0x8b5b: return setValue3fm; // _MAT3
 		case 0x8b5c: return setValue4fm; // _MAT4
 
-		case 0x8b5e: return setValueT1; // SAMPLER_2D
+		case 0x8b5e: case 0x8d66: return setValueT1; // SAMPLER_2D, SAMPLER_EXTERNAL_OES
 		case 0x8b60: return setValueT6; // SAMPLER_CUBE
 
 		case 0x1404: case 0x8b56: return setValue1i; // INT, BOOL
@@ -5625,7 +5618,7 @@ var encodings_fragment = "  gl_FragColor = linearToOutputTexel( gl_FragColor );\
 
 var encodings_pars_fragment = "\nvec4 LinearToLinear( in vec4 value ) {\n\treturn value;\n}\nvec4 GammaToLinear( in vec4 value, in float gammaFactor ) {\n\treturn vec4( pow( value.xyz, vec3( gammaFactor ) ), value.w );\n}\nvec4 LinearToGamma( in vec4 value, in float gammaFactor ) {\n\treturn vec4( pow( value.xyz, vec3( 1.0 / gammaFactor ) ), value.w );\n}\nvec4 sRGBToLinear( in vec4 value ) {\n\treturn vec4( mix( pow( value.rgb * 0.9478672986 + vec3( 0.0521327014 ), vec3( 2.4 ) ), value.rgb * 0.0773993808, vec3( lessThanEqual( value.rgb, vec3( 0.04045 ) ) ) ), value.w );\n}\nvec4 LinearTosRGB( in vec4 value ) {\n\treturn vec4( mix( pow( value.rgb, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ), value.rgb * 12.92, vec3( lessThanEqual( value.rgb, vec3( 0.0031308 ) ) ) ), value.w );\n}\nvec4 RGBEToLinear( in vec4 value ) {\n\treturn vec4( value.rgb * exp2( value.a * 255.0 - 128.0 ), 1.0 );\n}\nvec4 LinearToRGBE( in vec4 value ) {\n\tfloat maxComponent = max( max( value.r, value.g ), value.b );\n\tfloat fExp = clamp( ceil( log2( maxComponent ) ), -128.0, 127.0 );\n\treturn vec4( value.rgb / exp2( fExp ), ( fExp + 128.0 ) / 255.0 );\n}\nvec4 RGBMToLinear( in vec4 value, in float maxRange ) {\n\treturn vec4( value.xyz * value.w * maxRange, 1.0 );\n}\nvec4 LinearToRGBM( in vec4 value, in float maxRange ) {\n\tfloat maxRGB = max( value.x, max( value.g, value.b ) );\n\tfloat M      = clamp( maxRGB / maxRange, 0.0, 1.0 );\n\tM            = ceil( M * 255.0 ) / 255.0;\n\treturn vec4( value.rgb / ( M * maxRange ), M );\n}\nvec4 RGBDToLinear( in vec4 value, in float maxRange ) {\n\treturn vec4( value.rgb * ( ( maxRange / 255.0 ) / value.a ), 1.0 );\n}\nvec4 LinearToRGBD( in vec4 value, in float maxRange ) {\n\tfloat maxRGB = max( value.x, max( value.g, value.b ) );\n\tfloat D      = max( maxRange / maxRGB, 1.0 );\n\tD            = min( floor( D ) / 255.0, 1.0 );\n\treturn vec4( value.rgb * ( D * ( 255.0 / maxRange ) ), D );\n}\nconst mat3 cLogLuvM = mat3( 0.2209, 0.3390, 0.4184, 0.1138, 0.6780, 0.7319, 0.0102, 0.1130, 0.2969 );\nvec4 LinearToLogLuv( in vec4 value )  {\n\tvec3 Xp_Y_XYZp = value.rgb * cLogLuvM;\n\tXp_Y_XYZp = max(Xp_Y_XYZp, vec3(1e-6, 1e-6, 1e-6));\n\tvec4 vResult;\n\tvResult.xy = Xp_Y_XYZp.xy / Xp_Y_XYZp.z;\n\tfloat Le = 2.0 * log2(Xp_Y_XYZp.y) + 127.0;\n\tvResult.w = fract(Le);\n\tvResult.z = (Le - (floor(vResult.w*255.0))/255.0)/255.0;\n\treturn vResult;\n}\nconst mat3 cLogLuvInverseM = mat3( 6.0014, -2.7008, -1.7996, -1.3320, 3.1029, -5.7721, 0.3008, -1.0882, 5.6268 );\nvec4 LogLuvToLinear( in vec4 value ) {\n\tfloat Le = value.z * 255.0 + value.w;\n\tvec3 Xp_Y_XYZp;\n\tXp_Y_XYZp.y = exp2((Le - 127.0) / 2.0);\n\tXp_Y_XYZp.z = Xp_Y_XYZp.y / value.y;\n\tXp_Y_XYZp.x = value.x * Xp_Y_XYZp.z;\n\tvec3 vRGB = Xp_Y_XYZp.rgb * cLogLuvInverseM;\n\treturn vec4( max(vRGB, 0.0), 1.0 );\n}\n";
 
-var envmap_fragment = "#ifdef USE_ENVMAP\n\t#if defined( USE_BUMPMAP ) || defined( USE_NORMALMAP ) || defined( PHONG )\n\t\tvec3 cameraToVertex = normalize( vWorldPosition - cameraPosition );\n\t\tvec3 worldNormal = inverseTransformDirection( normal, viewMatrix );\n\t\t#ifdef ENVMAP_MODE_REFLECTION\n\t\t\tvec3 reflectVec = reflect( cameraToVertex, worldNormal );\n\t\t#else\n\t\t\tvec3 reflectVec = refract( cameraToVertex, worldNormal, refractionRatio );\n\t\t#endif\n\t#else\n\t\tvec3 reflectVec = vReflect;\n\t#endif\n\t#ifdef ENVMAP_TYPE_CUBE\n\t\tvec4 envColor = textureCube( envMap, flipNormal * vec3( flipEnvMap * reflectVec.x, reflectVec.yz ) );\n\t#elif defined( ENVMAP_TYPE_EQUIREC )\n\t\tvec2 sampleUV;\n\t\tsampleUV.y = saturate( flipNormal * reflectVec.y * 0.5 + 0.5 );\n\t\tsampleUV.x = atan( flipNormal * reflectVec.z, flipNormal * reflectVec.x ) * RECIPROCAL_PI2 + 0.5;\n\t\tvec4 envColor = texture2D( envMap, sampleUV );\n\t#elif defined( ENVMAP_TYPE_SPHERE )\n\t\tvec3 reflectView = flipNormal * normalize( ( viewMatrix * vec4( reflectVec, 0.0 ) ).xyz + vec3( 0.0, 0.0, 1.0 ) );\n\t\tvec4 envColor = texture2D( envMap, reflectView.xy * 0.5 + 0.5 );\n\t#else\n\t\tvec4 envColor = vec4( 0.0 );\n\t#endif\n\tenvColor = envMapTexelToLinear( envColor );\n\t#ifdef ENVMAP_BLENDING_MULTIPLY\n\t\toutgoingLight = mix( outgoingLight, outgoingLight * envColor.xyz, specularStrength * reflectivity );\n\t#elif defined( ENVMAP_BLENDING_MIX )\n\t\toutgoingLight = mix( outgoingLight, envColor.xyz, specularStrength * reflectivity );\n\t#elif defined( ENVMAP_BLENDING_ADD )\n\t\toutgoingLight += envColor.xyz * specularStrength * reflectivity;\n\t#endif\n#endif\n";
+var envmap_fragment = "#ifdef USE_ENVMAP\n\t#if defined( USE_BUMPMAP ) || defined( USE_NORMALMAP ) || defined( PHONG )\n\t\tvec3 cameraToVertex = normalize( vWorldPosition - cameraPosition );\n\t\tvec3 worldNormal = inverseTransformDirection( normal, viewMatrix );\n\t\t#ifdef ENVMAP_MODE_REFLECTION\n\t\t\tvec3 reflectVec = reflect( cameraToVertex, worldNormal );\n\t\t#else\n\t\t\tvec3 reflectVec = refract( cameraToVertex, worldNormal, refractionRatio );\n\t\t#endif\n\t#else\n\t\tvec3 reflectVec = vReflect;\n\t#endif\n\t#ifdef ENVMAP_TYPE_CUBE\n\t\tvec4 envColor = textureCube( envMap, flipNormal * vec3( flipEnvMap * reflectVec.x, reflectVec.yz ) );\n\t#elif defined( ENVMAP_TYPE_EQUIREC )\n\t\tvec2 sampleUV;\n\t\tsampleUV.y = asin( flipNormal * reflectVec.y ) * RECIPROCAL_PI + 0.5;\n\t\tsampleUV.x = atan( flipNormal * reflectVec.z, flipNormal * reflectVec.x ) * RECIPROCAL_PI2 + 0.5;\n\t\tvec4 envColor = texture2D( envMap, sampleUV );\n\t#elif defined( ENVMAP_TYPE_SPHERE )\n\t\tvec3 reflectView = flipNormal * normalize( ( viewMatrix * vec4( reflectVec, 0.0 ) ).xyz + vec3( 0.0, 0.0, 1.0 ) );\n\t\tvec4 envColor = texture2D( envMap, reflectView.xy * 0.5 + 0.5 );\n\t#else\n\t\tvec4 envColor = vec4( 0.0 );\n\t#endif\n\tenvColor = envMapTexelToLinear( envColor );\n\t#ifdef ENVMAP_BLENDING_MULTIPLY\n\t\toutgoingLight = mix( outgoingLight, outgoingLight * envColor.xyz, specularStrength * reflectivity );\n\t#elif defined( ENVMAP_BLENDING_MIX )\n\t\toutgoingLight = mix( outgoingLight, envColor.xyz, specularStrength * reflectivity );\n\t#elif defined( ENVMAP_BLENDING_ADD )\n\t\toutgoingLight += envColor.xyz * specularStrength * reflectivity;\n\t#endif\n#endif\n";
 
 var envmap_pars_fragment = "#if defined( USE_ENVMAP ) || defined( PHYSICAL )\n\tuniform float reflectivity;\n\tuniform float envMapIntensity;\n#endif\n#ifdef USE_ENVMAP\n\t#if ! defined( PHYSICAL ) && ( defined( USE_BUMPMAP ) || defined( USE_NORMALMAP ) || defined( PHONG ) )\n\t\tvarying vec3 vWorldPosition;\n\t#endif\n\t#ifdef ENVMAP_TYPE_CUBE\n\t\tuniform samplerCube envMap;\n\t#else\n\t\tuniform sampler2D envMap;\n\t#endif\n\tuniform float flipEnvMap;\n\t#if defined( USE_BUMPMAP ) || defined( USE_NORMALMAP ) || defined( PHONG ) || defined( PHYSICAL )\n\t\tuniform float refractionRatio;\n\t#else\n\t\tvarying vec3 vReflect;\n\t#endif\n#endif\n";
 
@@ -7159,6 +7152,8 @@ function Material() {
 Object.assign( Material.prototype, EventDispatcher.prototype, {
 
 	isMaterial: true,
+
+	onBeforeCompile: function () {},
 
 	setValues: function ( values ) {
 
@@ -9238,7 +9233,6 @@ function WebGLShadowMap( _renderer, _lights, _objects, capabilities ) {
 				_lookTarget.setFromMatrixPosition( light.target.matrixWorld );
 				shadowCamera.lookAt( _lookTarget );
 				shadowCamera.updateMatrixWorld();
-				shadowCamera.matrixWorldInverse.getInverse( shadowCamera.matrixWorld );
 
 				// compute shadow matrix
 
@@ -9269,7 +9263,6 @@ function WebGLShadowMap( _renderer, _lights, _objects, capabilities ) {
 					shadowCamera.up.copy( cubeUps[ face ] );
 					shadowCamera.lookAt( _lookTarget );
 					shadowCamera.updateMatrixWorld();
-					shadowCamera.matrixWorldInverse.getInverse( shadowCamera.matrixWorld );
 
 					var vpDimensions = cube2DViewPorts[ face ];
 					_state.viewport( vpDimensions );
@@ -9991,10 +9984,8 @@ Object.assign( Ray.prototype, {
 
 	applyMatrix4: function ( matrix4 ) {
 
-		this.direction.add( this.origin ).applyMatrix4( matrix4 );
 		this.origin.applyMatrix4( matrix4 );
-		this.direction.sub( this.origin );
-		this.direction.normalize();
+		this.direction.transformDirection( matrix4 );
 
 		return this;
 
@@ -10746,6 +10737,8 @@ Object.assign( Object3D.prototype, EventDispatcher.prototype, {
 
 			}
 
+			return this;
+
 		}
 
 		var index = this.children.indexOf( object );
@@ -10760,6 +10753,8 @@ Object.assign( Object3D.prototype, EventDispatcher.prototype, {
 
 		}
 
+		return this;
+		
 	},
 
 	getObjectById: function ( id ) {
@@ -13093,7 +13088,7 @@ Object.assign( Geometry.prototype, EventDispatcher.prototype, {
 
 	merge: function ( geometry, matrix, materialIndexOffset ) {
 
-		if ( ( geometry && geometry.isGeometry ) === false ) {
+		if ( ! ( geometry && geometry.isGeometry ) ) {
 
 			console.error( 'THREE.Geometry.merge(): geometry not an instance of THREE.Geometry.', geometry );
 			return;
@@ -13213,7 +13208,7 @@ Object.assign( Geometry.prototype, EventDispatcher.prototype, {
 
 	mergeMesh: function ( mesh ) {
 
-		if ( ( mesh && mesh.isMesh ) === false ) {
+		if ( ! ( mesh && mesh.isMesh ) ) {
 
 			console.error( 'THREE.Geometry.mergeMesh(): mesh not an instance of THREE.Mesh.', mesh );
 			return;
@@ -13883,7 +13878,7 @@ Object.assign( BufferGeometry.prototype, EventDispatcher.prototype, {
 
 	addAttribute: function ( name, attribute ) {
 
-		if ( ( attribute && attribute.isBufferAttribute ) === false && ( attribute && attribute.isInterleavedBufferAttribute ) === false ) {
+		if ( ! ( attribute && attribute.isBufferAttribute ) && ! ( attribute && attribute.isInterleavedBufferAttribute ) ) {
 
 			console.warn( 'THREE.BufferGeometry: .addAttribute() now expects ( name, attribute ).' );
 
@@ -14593,7 +14588,7 @@ Object.assign( BufferGeometry.prototype, EventDispatcher.prototype, {
 
 	merge: function ( geometry, offset ) {
 
-		if ( ( geometry && geometry.isBufferGeometry ) === false ) {
+		if ( ! ( geometry && geometry.isBufferGeometry ) ) {
 
 			console.error( 'THREE.BufferGeometry.merge(): geometry not an instance of THREE.BufferGeometry.', geometry );
 			return;
@@ -15620,9 +15615,9 @@ Camera.prototype = Object.assign( Object.create( Object3D.prototype ), {
 
 	isCamera: true,
 
-	copy: function ( source ) {
+	copy: function ( source, recursive ) {
 
-		Object3D.prototype.copy.call( this, source );
+		Object3D.prototype.copy.call( this, source, recursive );
 
 		this.matrixWorldInverse.copy( source.matrixWorldInverse );
 		this.projectionMatrix.copy( source.projectionMatrix );
@@ -15646,6 +15641,14 @@ Camera.prototype = Object.assign( Object.create( Object3D.prototype ), {
 		};
 
 	}(),
+
+	updateMatrixWorld: function ( force ) {
+
+		Object3D.prototype.updateMatrixWorld.call( this, force );
+
+		this.matrixWorldInverse.getInverse( this.matrixWorld );
+
+	},
 
 	clone: function () {
 
@@ -15691,9 +15694,9 @@ PerspectiveCamera.prototype = Object.assign( Object.create( Camera.prototype ), 
 
 	isPerspectiveCamera: true,
 
-	copy: function ( source ) {
+	copy: function ( source, recursive ) {
 
-		Camera.prototype.copy.call( this, source );
+		Camera.prototype.copy.call( this, source, recursive );
 
 		this.fov = source.fov;
 		this.zoom = source.zoom;
@@ -15906,9 +15909,9 @@ OrthographicCamera.prototype = Object.assign( Object.create( Camera.prototype ),
 
 	isOrthographicCamera: true,
 
-	copy: function ( source ) {
+	copy: function ( source, recursive ) {
 
-		Camera.prototype.copy.call( this, source );
+		Camera.prototype.copy.call( this, source, recursive );
 
 		this.left = source.left;
 		this.right = source.right;
@@ -16105,6 +16108,8 @@ function WebGLAttributes( gl ) {
 
 	function remove( attribute ) {
 
+		if ( attribute.isInterleavedBufferAttribute ) attribute = attribute.data;
+		
 		var data = buffers[ attribute.uuid ];
 
 		if ( data ) {
@@ -16339,32 +16344,18 @@ function WebGLIndexedBufferRenderer( gl, extensions, infoRender ) {
 
 	}
 
-	var type, size;
+	var type, bytesPerElement;
 
-	function setIndex( index ) {
+	function setIndex( value ) {
 
-		if ( index.array instanceof Uint32Array && extensions.get( 'OES_element_index_uint' ) ) {
-
-			type = gl.UNSIGNED_INT;
-			size = 4;
-
-		} else if ( index.array instanceof Uint16Array ) {
-
-			type = gl.UNSIGNED_SHORT;
-			size = 2;
-
-		} else {
-
-			type = gl.UNSIGNED_BYTE;
-			size = 1;
-
-		}
+		type = value.type;
+		bytesPerElement = value.bytesPerElement;
 
 	}
 
 	function render( start, count ) {
 
-		gl.drawElements( mode, count, type, start * size );
+		gl.drawElements( mode, count, type, start * bytesPerElement );
 
 		infoRender.calls ++;
 		infoRender.vertices += count;
@@ -16384,7 +16375,7 @@ function WebGLIndexedBufferRenderer( gl, extensions, infoRender ) {
 
 		}
 
-		extension.drawElementsInstancedANGLE( mode, count, type, start * size, geometry.maxInstancedCount );
+		extension.drawElementsInstancedANGLE( mode, count, type, start * bytesPerElement, geometry.maxInstancedCount );
 
 		infoRender.calls ++;
 		infoRender.vertices += count * geometry.maxInstancedCount;
@@ -17036,15 +17027,15 @@ function unrollLoops( string ) {
 
 }
 
-function WebGLProgram( renderer, code, material, parameters ) {
+function WebGLProgram( renderer, code, material, shader, parameters ) {
 
 	var gl = renderer.context;
 
 	var extensions = material.extensions;
 	var defines = material.defines;
 
-	var vertexShader = material.__webglShader.vertexShader;
-	var fragmentShader = material.__webglShader.fragmentShader;
+	var vertexShader = shader.vertexShader;
+	var fragmentShader = shader.fragmentShader;
 
 	var shadowMapTypeDefine = 'SHADOWMAP_TYPE_BASIC';
 
@@ -17156,7 +17147,7 @@ function WebGLProgram( renderer, code, material, parameters ) {
 			'precision ' + parameters.precision + ' float;',
 			'precision ' + parameters.precision + ' int;',
 
-			'#define SHADER_NAME ' + material.__webglShader.name,
+			'#define SHADER_NAME ' + shader.name,
 
 			customDefines,
 
@@ -17263,7 +17254,7 @@ function WebGLProgram( renderer, code, material, parameters ) {
 			'precision ' + parameters.precision + ' float;',
 			'precision ' + parameters.precision + ' int;',
 
-			'#define SHADER_NAME ' + material.__webglShader.name,
+			'#define SHADER_NAME ' + shader.name,
 
 			customDefines,
 
@@ -17751,13 +17742,15 @@ function WebGLPrograms( renderer, capabilities ) {
 
 		}
 
+		array.push( material.onBeforeCompile.toString() );
+
 		array.push( renderer.gammaOutput );
 
 		return array.join();
 
 	};
 
-	this.acquireProgram = function ( material, parameters, code ) {
+	this.acquireProgram = function ( material, shader, parameters, code ) {
 
 		var program;
 
@@ -17779,7 +17772,7 @@ function WebGLPrograms( renderer, capabilities ) {
 
 		if ( program === undefined ) {
 
-			program = new WebGLProgram( renderer, code, material, parameters );
+			program = new WebGLProgram( renderer, code, material, shader, parameters );
 			programs.push( program );
 
 		}
@@ -17876,6 +17869,13 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
 
 		return ( texture.wrapS !== ClampToEdgeWrapping || texture.wrapT !== ClampToEdgeWrapping ) ||
 			( texture.minFilter !== NearestFilter && texture.minFilter !== LinearFilter );
+
+	}
+
+	function textureNeedsGenerateMipmaps( texture, isPowerOfTwo ) {
+
+		return texture.generateMipmaps && isPowerOfTwo &&
+			texture.minFilter !== NearestFilter && texture.minFilter !== LinearFilter;
 
 	}
 
@@ -18116,7 +18116,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
 
 				}
 
-				if ( texture.generateMipmaps && isPowerOfTwoImage ) {
+				if ( textureNeedsGenerateMipmaps( texture, isPowerOfTwoImage ) ) {
 
 					_gl.generateMipmap( _gl.TEXTURE_CUBE_MAP );
 
@@ -18365,7 +18365,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
 
 		}
 
-		if ( texture.generateMipmaps && isPowerOfTwoImage ) _gl.generateMipmap( _gl.TEXTURE_2D );
+		if ( textureNeedsGenerateMipmaps( texture, isPowerOfTwoImage ) ) _gl.generateMipmap( _gl.TEXTURE_2D );
 
 		textureProperties.__version = texture.version;
 
@@ -18543,7 +18543,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
 
 			}
 
-			if ( renderTarget.texture.generateMipmaps && isTargetPowerOfTwo ) _gl.generateMipmap( _gl.TEXTURE_CUBE_MAP );
+			if ( textureNeedsGenerateMipmaps( renderTarget.texture, isTargetPowerOfTwo ) ) _gl.generateMipmap( _gl.TEXTURE_CUBE_MAP );
 			state.bindTexture( _gl.TEXTURE_CUBE_MAP, null );
 
 		} else {
@@ -18552,7 +18552,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
 			setTextureParameters( _gl.TEXTURE_2D, renderTarget.texture, isTargetPowerOfTwo );
 			setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer, renderTarget, _gl.COLOR_ATTACHMENT0, _gl.TEXTURE_2D );
 
-			if ( renderTarget.texture.generateMipmaps && isTargetPowerOfTwo ) _gl.generateMipmap( _gl.TEXTURE_2D );
+			if ( textureNeedsGenerateMipmaps( renderTarget.texture, isTargetPowerOfTwo ) ) _gl.generateMipmap( _gl.TEXTURE_2D );
 			state.bindTexture( _gl.TEXTURE_2D, null );
 
 		}
@@ -18570,12 +18570,11 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
 	function updateRenderTargetMipmap( renderTarget ) {
 
 		var texture = renderTarget.texture;
+		var isTargetPowerOfTwo = isPowerOfTwo( renderTarget );
 
-		if ( texture.generateMipmaps && isPowerOfTwo( renderTarget ) &&
-				texture.minFilter !== NearestFilter &&
-				texture.minFilter !== LinearFilter ) {
+		if ( textureNeedsGenerateMipmaps( texture, isTargetPowerOfTwo ) ) {
 
-			var target = (renderTarget && renderTarget.isWebGLRenderTargetCube) ? _gl.TEXTURE_CUBE_MAP : _gl.TEXTURE_2D;
+			var target = renderTarget.isWebGLRenderTargetCube ? _gl.TEXTURE_CUBE_MAP : _gl.TEXTURE_2D;
 			var webglTexture = properties.get( texture ).__webglTexture;
 
 			state.bindTexture( target, webglTexture );
@@ -20209,6 +20208,7 @@ function WebGLRenderer( parameters ) {
 	this.capabilities = capabilities;
 	this.extensions = extensions;
 	this.properties = properties;
+	this.renderLists = renderLists;
 	this.state = state;
 
 	// shadow map
@@ -20268,7 +20268,7 @@ function WebGLRenderer( parameters ) {
 
 		_pixelRatio = value;
 
-		this.setSize( _viewport.z, _viewport.w, false );
+		this.setSize( _width, _height, false );
 
 	};
 
@@ -20302,13 +20302,15 @@ function WebGLRenderer( parameters ) {
 
 	this.setViewport = function ( x, y, width, height ) {
 
-		state.viewport( _viewport.set( x, y, width, height ) );
+		_viewport.set( x, _height - y - height, width, height );
+		state.viewport( _currentViewport.copy( _viewport ).multiplyScalar( _pixelRatio ) );
 
 	};
 
 	this.setScissor = function ( x, y, width, height ) {
 
-		state.scissor( _scissor.set( x, y, width, height ) );
+		_scissor.set( x, _height - y - height, width, height );
+		state.scissor( _currentScissor.copy( _scissor ).multiplyScalar( _pixelRatio ) );
 
 	};
 
@@ -20649,12 +20651,15 @@ function WebGLRenderer( parameters ) {
 
 		}
 
+		var attribute;
 		var renderer = bufferRenderer;
 
 		if ( index !== null ) {
 
+			attribute = attributes.get( index );
+
 			renderer = indexedBufferRenderer;
-			renderer.setIndex( index );
+			renderer.setIndex( attribute );
 
 		}
 
@@ -20664,7 +20669,7 @@ function WebGLRenderer( parameters ) {
 
 			if ( index !== null ) {
 
-				_gl.bindBuffer( _gl.ELEMENT_ARRAY_BUFFER, attributes.get( index ).buffer );
+				_gl.bindBuffer( _gl.ELEMENT_ARRAY_BUFFER, attribute.buffer );
 
 			}
 
@@ -20807,11 +20812,11 @@ function WebGLRenderer( parameters ) {
 					var normalized = geometryAttribute.normalized;
 					var size = geometryAttribute.itemSize;
 
-					var attributeProperties = attributes.get( geometryAttribute );
+					var attribute = attributes.get( geometryAttribute );
 
-					var buffer = attributeProperties.buffer;
-					var type = attributeProperties.type;
-					var bytesPerElement = attributeProperties.bytesPerElement;
+					var buffer = attribute.buffer;
+					var type = attribute.type;
+					var bytesPerElement = attribute.bytesPerElement;
 
 					if ( geometryAttribute.isInterleavedBufferAttribute ) {
 
@@ -20944,7 +20949,7 @@ function WebGLRenderer( parameters ) {
 
 	this.render = function ( scene, camera, renderTarget, forceClear ) {
 
-		if ( camera !== undefined && camera.isCamera !== true ) {
+		if ( ! ( camera && camera.isCamera ) ) {
 
 			console.error( 'THREE.WebGLRenderer.render: camera is not an instance of THREE.Camera.' );
 			return;
@@ -20966,8 +20971,6 @@ function WebGLRenderer( parameters ) {
 		camera.onBeforeRender( _this );
 
 		if ( camera.parent === null ) camera.updateMatrixWorld();
-
-		camera.matrixWorldInverse.getInverse( camera.matrixWorld );
 
 		_projScreenMatrix.multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse );
 		_frustum.setFromMatrix( _projScreenMatrix );
@@ -21139,7 +21142,7 @@ function WebGLRenderer( parameters ) {
 		state.buffers.depth.setMask( true );
 		state.buffers.color.setMask( true );
 
-		if ( camera.isArrayCamera && camera.enabled ) {
+		if ( camera.isArrayCamera ) {
 
 			_this.setScissorTest( false );
 
@@ -21313,7 +21316,7 @@ function WebGLRenderer( parameters ) {
 
 			object.onBeforeRender( _this, scene, camera, geometry, material, group );
 
-			if ( camera.isArrayCamera && camera.enabled ) {
+			if ( camera.isArrayCamera ) {
 
 				var cameras = camera.cameras;
 
@@ -21322,14 +21325,13 @@ function WebGLRenderer( parameters ) {
 					var camera2 = cameras[ j ];
 					var bounds = camera2.bounds;
 
-					_this.setViewport(
-						bounds.x * _width * _pixelRatio, bounds.y * _height * _pixelRatio,
-						bounds.z * _width * _pixelRatio, bounds.w * _height * _pixelRatio
-					);
-					_this.setScissor(
-						bounds.x * _width * _pixelRatio, bounds.y * _height * _pixelRatio,
-						bounds.z * _width * _pixelRatio, bounds.w * _height * _pixelRatio
-					);
+					var x = bounds.x * _width;
+					var y = bounds.y * _height;
+					var width = bounds.z * _width;
+					var height = bounds.w * _height;
+
+					_this.setViewport( x, y, width, height );
+					_this.setScissor( x, y, width, height );
 					_this.setScissorTest( true );
 
 					renderObject( object, scene, camera2, geometry, material, group );
@@ -21411,7 +21413,7 @@ function WebGLRenderer( parameters ) {
 
 				var shader = ShaderLib[ parameters.shaderID ];
 
-				materialProperties.__webglShader = {
+				materialProperties.shader = {
 					name: material.type,
 					uniforms: UniformsUtils.clone( shader.uniforms ),
 					vertexShader: shader.vertexShader,
@@ -21420,7 +21422,7 @@ function WebGLRenderer( parameters ) {
 
 			} else {
 
-				materialProperties.__webglShader = {
+				materialProperties.shader = {
 					name: material.type,
 					uniforms: material.uniforms,
 					vertexShader: material.vertexShader,
@@ -21429,9 +21431,9 @@ function WebGLRenderer( parameters ) {
 
 			}
 
-			material.__webglShader = materialProperties.__webglShader;
+			material.onBeforeCompile( materialProperties.shader );
 
-			program = programCache.acquireProgram( material, parameters, code );
+			program = programCache.acquireProgram( material, materialProperties.shader, parameters, code );
 
 			materialProperties.program = program;
 			material.program = program;
@@ -21472,7 +21474,7 @@ function WebGLRenderer( parameters ) {
 
 		}
 
-		var uniforms = materialProperties.__webglShader.uniforms;
+		var uniforms = materialProperties.shader.uniforms;
 
 		if ( ! material.isShaderMaterial &&
 			! material.isRawShaderMaterial ||
@@ -21581,7 +21583,7 @@ function WebGLRenderer( parameters ) {
 
 		var program = materialProperties.program,
 			p_uniforms = program.getUniforms(),
-			m_uniforms = materialProperties.__webglShader.uniforms;
+			m_uniforms = materialProperties.shader.uniforms;
 
 		if ( program.id !== _currentProgram ) {
 
@@ -22554,7 +22556,7 @@ function WebGLRenderer( parameters ) {
 
 	this.readRenderTargetPixels = function ( renderTarget, x, y, width, height, buffer ) {
 
-		if ( ( renderTarget && renderTarget.isWebGLRenderTarget ) === false ) {
+		if ( ! ( renderTarget && renderTarget.isWebGLRenderTarget ) ) {
 
 			console.error( 'THREE.WebGLRenderer.readRenderTargetPixels: renderTarget is not THREE.WebGLRenderTarget.' );
 			return;
@@ -26405,7 +26407,6 @@ function ExtrudeBufferGeometry( shapes, options ) {
 
 	if ( typeof ( shapes ) === "undefined" ) {
 
-		shapes = [];
 		return;
 
 	}
@@ -26560,8 +26561,6 @@ ExtrudeBufferGeometry.prototype.addShape = function ( shape, options ) {
 
 		}
 
-		reverse = false; // If vertices are in order now, we shouldn't need to worry about them again (hopefully)!
-
 	}
 
 
@@ -26605,7 +26604,7 @@ ExtrudeBufferGeometry.prototype.addShape = function ( shape, options ) {
 		// inPt' is the intersection of the two lines parallel to the two
 		//  adjacent edges of inPt at a distance of 1 unit on the left side.
 
-		var v_trans_x, v_trans_y, shrink_by = 1; // resulting translation vector for inPt
+		var v_trans_x, v_trans_y, shrink_by; // resulting translation vector for inPt
 
 		// good reading for geometry algorithms (here: line-line intersection)
 		// http://geomalgorithms.com/a05-_intersect-1.html
@@ -27210,7 +27209,7 @@ function TextBufferGeometry( text, parameters ) {
 
 	var font = parameters.font;
 
-	if ( ( font && font.isFont ) === false ) {
+	if ( ! ( font && font.isFont ) ) {
 
 		console.error( 'THREE.TextGeometry: font parameter is not an instance of THREE.Font.' );
 		return new Geometry();
@@ -32470,7 +32469,8 @@ Object.assign( BufferGeometryLoader.prototype, {
 var TYPED_ARRAYS = {
 	Int8Array: Int8Array,
 	Uint8Array: Uint8Array,
-	Uint8ClampedArray: Uint8ClampedArray,
+	// Workaround for IE11 pre KB2929437. See #11440
+	Uint8ClampedArray: typeof Uint8ClampedArray !== 'undefined' ? Uint8ClampedArray : Uint8Array,
 	Int16Array: Int16Array,
 	Uint16Array: Uint16Array,
 	Int32Array: Int32Array,
@@ -35996,7 +35996,6 @@ function ArrayCamera( array ) {
 
 	PerspectiveCamera.call( this );
 
-	this.enabled = false;
 	this.cameras = array || [];
 
 }
@@ -36866,6 +36865,19 @@ Object.assign( PropertyBinding, {
 			return new PropertyBinding.Composite( root, path, parsedPath );
 
 		}
+
+	},
+
+	/**
+	 * Replaces spaces with underscores and removes unsupported characters from
+	 * node names, to ensure compatibility with parseTrackName().
+	 *
+	 * @param  {string} name Node name to be sanitized.
+	 * @return {string}
+	 */
+	sanitizeNodeName: function ( name ) {
+
+		return name.replace( /\s/g, '_' ).replace( /[^\w-]/g, '' );
 
 	},
 
@@ -39790,6 +39802,7 @@ Object.assign( Clock.prototype, {
 
 		this.getElapsedTime();
 		this.running = false;
+		this.autoStart = false;
 
 	},
 
@@ -40535,9 +40548,29 @@ SpotLightHelper.prototype.update = function () {
  * @author Mugen87 / https://github.com/Mugen87
  */
 
+function getBoneList( object ) {
+
+	var boneList = [];
+
+	if ( object && object.isBone ) {
+
+		boneList.push( object );
+
+	}
+
+	for ( var i = 0; i < object.children.length; i ++ ) {
+
+		boneList.push.apply( boneList, getBoneList( object.children[ i ] ) );
+
+	}
+
+	return boneList;
+
+}
+
 function SkeletonHelper( object ) {
 
-	this.bones = this.getBoneList( object );
+	var bones = getBoneList( object );
 
 	var geometry = new BufferGeometry();
 
@@ -40547,9 +40580,9 @@ function SkeletonHelper( object ) {
 	var color1 = new Color( 0, 0, 1 );
 	var color2 = new Color( 0, 1, 0 );
 
-	for ( var i = 0; i < this.bones.length; i ++ ) {
+	for ( var i = 0; i < bones.length; i ++ ) {
 
-		var bone = this.bones[ i ];
+		var bone = bones[ i ];
 
 		if ( bone.parent && bone.parent.isBone ) {
 
@@ -40570,55 +40603,37 @@ function SkeletonHelper( object ) {
 	LineSegments.call( this, geometry, material );
 
 	this.root = object;
+	this.bones = bones;
 
 	this.matrix = object.matrixWorld;
 	this.matrixAutoUpdate = false;
 
-	this.update();
+	this.onBeforeRender();
 
 }
-
 
 SkeletonHelper.prototype = Object.create( LineSegments.prototype );
 SkeletonHelper.prototype.constructor = SkeletonHelper;
 
-SkeletonHelper.prototype.getBoneList = function( object ) {
-
-	var boneList = [];
-
-	if ( object && object.isBone ) {
-
-		boneList.push( object );
-
-	}
-
-	for ( var i = 0; i < object.children.length; i ++ ) {
-
-		boneList.push.apply( boneList, this.getBoneList( object.children[ i ] ) );
-
-	}
-
-	return boneList;
-
-};
-
-SkeletonHelper.prototype.update = function () {
+SkeletonHelper.prototype.onBeforeRender = function () {
 
 	var vector = new Vector3();
 
 	var boneMatrix = new Matrix4();
 	var matrixWorldInv = new Matrix4();
 
-	return function update() {
+	return function onBeforeRender() {
+
+		var bones = this.bones;
 
 		var geometry = this.geometry;
 		var position = geometry.getAttribute( 'position' );
 
 		matrixWorldInv.getInverse( this.root.matrixWorld );
 
-		for ( var i = 0, j = 0; i < this.bones.length; i ++ ) {
+		for ( var i = 0, j = 0; i < bones.length; i ++ ) {
 
-			var bone = this.bones[ i ];
+			var bone = bones[ i ];
 
 			if ( bone.parent && bone.parent.isBone ) {
 
@@ -41913,9 +41928,7 @@ var SceneUtils = {
 
 	attach: function ( child, scene, parent ) {
 
-		var matrixWorldInverse = new Matrix4();
-		matrixWorldInverse.getInverse( parent.matrixWorld );
-		child.applyMatrix( matrixWorldInverse );
+		child.applyMatrix( new Matrix4().getInverse( parent.matrixWorld ) );
 
 		scene.remove( child );
 		parent.add( child );
@@ -42176,6 +42189,12 @@ GridHelper.prototype.setColors = function () {
 
 	console.error( 'THREE.GridHelper: setColors() has been deprecated, pass them in the constructor instead.' );
 
+};
+
+SkeletonHelper.prototype.update = function () {
+
+	console.error( 'THREE.SkeletonHelper: update() no longer needs to be called.' );
+	
 };
 
 function WireframeHelper( object, hex ) {
