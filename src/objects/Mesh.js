@@ -50,6 +50,18 @@ Mesh.prototype = Object.assign( Object.create( Object3D.prototype ), {
 
 		this.drawMode = source.drawMode;
 
+		if ( source.morphTargetInfluences !== undefined ) {
+
+			this.morphTargetInfluences = source.morphTargetInfluences.slice();
+
+		}
+
+		if ( source.morphTargetDictionary !== undefined ) {
+
+			this.morphTargetDictionary = Object.assign( {}, source.morphTargetDictionary );
+
+		}
+
 		return this;
 
 	},
@@ -268,7 +280,7 @@ Mesh.prototype = Object.assign( Object.create( Object3D.prototype ), {
 
 					}
 
-				} else {
+				} else if ( position !== undefined ) {
 
 					// non-indexed buffer geometry
 

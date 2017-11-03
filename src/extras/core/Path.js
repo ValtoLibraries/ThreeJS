@@ -11,11 +11,14 @@ import { CurvePath } from './CurvePath.js';
 function Path( points ) {
 
 	CurvePath.call( this );
+
+	this.type = 'Path';
+
 	this.currentPoint = new Vector2();
 
 	if ( points ) {
 
-		this.fromPoints( points );
+		this.setFromPoints( points );
 
 	}
 

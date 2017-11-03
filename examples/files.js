@@ -19,7 +19,7 @@ var files = {
 		"webgl_effects_peppersghost",
 		"webgl_effects_stereo",
 		"webgl_geometries",
-		"webgl_geometries2",
+		"webgl_geometries_parametric",
 		"webgl_geometry_colors",
 		"webgl_geometry_colors_blender",
 		"webgl_geometry_colors_lookuptable",
@@ -231,6 +231,7 @@ var files = {
 		"webgl_postprocessing_unreal_bloom",
 		"webgl_raycast_texture",
 		"webgl_read_float_buffer",
+		"webgl_refraction",
 		"webgl_rtt",
 		"webgl_sandbox",
 		"webgl_shader",
@@ -255,7 +256,9 @@ var files = {
 		"webgl_test_memory2",
 		"webgl_tonemapping",
 		"webgl_trails",
-		"webgl_video_panorama_equirectangular"
+		"webgl_video_panorama_equirectangular",
+		"webgl_water",
+		"webgl_water_flowmap"
 	],
 	"webgl / advanced": [
 		"webgl_buffergeometry",
@@ -294,18 +297,19 @@ var files = {
 	*/
 	"webaudio": [
 		"webaudio_sandbox",
+		"webaudio_timing",
 		"webaudio_visualizer"
 	],
 	"webvr": [
 		"webvr_cubes",
 		"webvr_daydream",
+		"webvr_gearvr",
 		"webvr_panorama",
 		"webvr_rollercoaster",
 		"webvr_sandbox",
 		"webvr_video",
 		"webvr_vive",
 		"webvr_vive_dragging",
-		"webvr_vive_camerarig",
 		"webvr_vive_paint",
 		"webvr_vive_sculpt"
 	],
@@ -339,7 +343,6 @@ var files = {
 	"canvas": [
 		"canvas_ascii_effect",
 		"canvas_camera_orthographic",
-		"canvas_camera_orthographic2",
 		"canvas_geometry_birds",
 		"canvas_geometry_cube",
 		"canvas_geometry_earth",

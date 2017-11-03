@@ -181,7 +181,7 @@ var list = {
 
 		"Helpers": {
 			"ArrowHelper": "api/helpers/ArrowHelper",
-			"AxisHelper": "api/helpers/AxisHelper",
+			"AxesHelper": "api/helpers/AxesHelper",
 			"BoxHelper": "api/helpers/BoxHelper",
 			"Box3Helper": "api/helpers/Box3Helper",
 			"CameraHelper": "api/helpers/CameraHelper",
@@ -211,7 +211,6 @@ var list = {
 		"Lights / Shadows": {
 			"DirectionalLightShadow": "api/lights/shadows/DirectionalLightShadow",
 			"LightShadow": "api/lights/shadows/LightShadow",
-			"RectAreaLightShadow": "api/lights/shadows/RectAreaLightShadow",
 			"SpotLightShadow": "api/lights/shadows/SpotLightShadow"
 		},
 
@@ -347,16 +346,16 @@ var list = {
 
 		"Loaders": {
 			"BabylonLoader": "examples/loaders/BabylonLoader",
-			"ColladaLoader": "examples/loaders/ColladaLoader",
 			"GLTFLoader": "examples/loaders/GLTFLoader",
 			"MTLLoader": "examples/loaders/MTLLoader",
 			"OBJLoader": "examples/loaders/OBJLoader",
 			"OBJLoader2": "examples/loaders/OBJLoader2",
-			"WWOBJLoader2": "examples/loaders/WWOBJLoader2",
+			"LoaderSupport": "examples/loaders/LoaderSupport",
 			"PCDLoader": "examples/loaders/PCDLoader",
 			"PDBLoader": "examples/loaders/PDBLoader",
 			"SVGLoader": "examples/loaders/SVGLoader",
-			"TGALoader": "examples/loaders/TGALoader"
+			"TGALoader": "examples/loaders/TGALoader",
+			"PRWMLoader": "examples/loaders/PRWMLoader"
 		},
 
 		"Exporters": {
@@ -364,7 +363,6 @@ var list = {
 		},
 
 		"Plugins": {
-			"CombinedCamera": "examples/cameras/CombinedCamera",
 			"LookupTable": "examples/Lut",
 			"SpriteCanvasMaterial": "examples/SpriteCanvasMaterial"
 		},
