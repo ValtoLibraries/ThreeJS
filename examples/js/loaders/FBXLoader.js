@@ -100,9 +100,7 @@
 			// console.log( FBXTree );
 
 			var connections = parseConnections( FBXTree );
-
 			var images = parseImages( FBXTree );
-
 			var textures = parseTextures( FBXTree, new THREE.TextureLoader( this.manager ).setPath( resourceDirectory ), images, connections );
 			var materials = parseMaterials( FBXTree, textures, connections );
 			var skeletons = parseDeformers( FBXTree, connections );
@@ -165,14 +163,11 @@
 
 	// Parse FBXTree.Objects.Video for embedded image data
 	// These images are connected to textures in FBXTree.Objects.Textures
-	// via FBXTree.Connections. Note that images can be duplicated here, in which case only one
-	// may have a .Content field - we'll check for this and duplicate the data in the imageMap
+	// via FBXTree.Connections.
 	function parseImages( FBXTree ) {
 
-		var imageMap = new Map();
-
-		var names = {};
-		var duplicates = [];
+		var images = {};
+		var blobs = {};
 
 		if ( 'Video' in FBXTree.Objects ) {
 
@@ -184,22 +179,21 @@
 
 				var id = parseInt( nodeID );
 
-				// check whether the file name is used by another videoNode
-				// and if so keep a record of both ids as a duplicate pair [ id1, id2 ]
-				if ( videoNode.FileName in names ) {
-
-					duplicates.push( [ id, names[ videoNode.FileName ] ] );
-
-				}
-
-				names[ videoNode.FileName ] = id;
+				images[ id ] = videoNode.Filename;
 
 				// raw image data is in videoNode.Content
-				if ( 'Content' in videoNode && videoNode.Content !== '' ) {
+				if ( 'Content' in videoNode ) {
 
-					var image = parseImage( videoNodes[ nodeID ] );
+					var arrayBufferContent = ( videoNode.Content instanceof ArrayBuffer ) && ( videoNode.Content.byteLength > 0 );
+					var base64Content = ( typeof videoNode.Content === 'string' ) && ( videoNode.Content !== '' );
 
-					imageMap.set( id, image );
+					if ( arrayBufferContent || base64Content ) {
+
+						var image = parseImage( videoNodes[ nodeID ] );
+
+						blobs[ videoNode.Filename ] = image;
+
+					}
 
 				}
 
@@ -207,28 +201,16 @@
 
 		}
 
+		for ( var id in images ) {
 
-		// check each duplicate pair - if only one is in the image map then
-		// create an entry for the other id containing the same image data
-		// Note: it seems to be possible for entries to have the same file name but different
-		// content, we won't overwrite these
-		duplicates.forEach( function ( duplicatePair ) {
+			var filename = images[ id ];
 
-			if ( imageMap.has( duplicatePair[ 0 ] ) && ! imageMap.has( duplicatePair[ 1 ] ) ) {
+			if ( blobs[ filename ] !== undefined ) images[ id ] = blobs[ filename ];
+			else images[ id ] = images[ id ].split( '\\' ).pop();
 
-				var image = imageMap.get( duplicatePair[ 0 ] );
-				imageMap.set( duplicatePair[ 1 ], image );
+		}
 
-			} else if ( imageMap.has( duplicatePair[ 1 ] ) && ! imageMap.has( duplicatePair[ 0 ] ) ) {
-
-				var image = imageMap.get( duplicatePair[ 1 ] );
-				imageMap.set( duplicatePair[ 0 ], image );
-
-			}
-
-		} );
-
-		return imageMap;
+		return images;
 
 	}
 
@@ -287,7 +269,7 @@
 	// Parse nodes in FBXTree.Objects.Texture
 	// These contain details such as UV scaling, cropping, rotation etc and are connected
 	// to images in FBXTree.Objects.Video
-	function parseTextures( FBXTree, loader, imageMap, connections ) {
+	function parseTextures( FBXTree, loader, images, connections ) {
 
 		var textureMap = new Map();
 
@@ -296,7 +278,7 @@
 			var textureNodes = FBXTree.Objects.Texture;
 			for ( var nodeID in textureNodes ) {
 
-				var texture = parseTexture( textureNodes[ nodeID ], loader, imageMap, connections );
+				var texture = parseTexture( textureNodes[ nodeID ], loader, images, connections );
 				textureMap.set( parseInt( nodeID ), texture );
 
 			}
@@ -308,9 +290,9 @@
 	}
 
 	// Parse individual node in FBXTree.Objects.Texture
-	function parseTexture( textureNode, loader, imageMap, connections ) {
+	function parseTexture( textureNode, loader, images, connections ) {
 
-		var texture = loadTexture( textureNode, loader, imageMap, connections );
+		var texture = loadTexture( textureNode, loader, images, connections );
 
 		texture.ID = textureNode.id;
 
@@ -342,48 +324,23 @@
 	}
 
 	// load a texture specified as a blob or data URI, or via an external URL using THREE.TextureLoader
-	function loadTexture( textureNode, loader, imageMap, connections ) {
+	function loadTexture( textureNode, loader, images, connections ) {
 
 		var fileName;
 
-		var filePath = textureNode.FileName;
-		var relativeFilePath = textureNode.RelativeFilename;
+		var currentPath = loader.path;
 
 		var children = connections.get( textureNode.id ).children;
 
-		if ( children !== undefined && children.length > 0 && imageMap.has( children[ 0 ].ID ) ) {
+		if ( children !== undefined && children.length > 0 && images[ children[ 0 ].ID ] !== undefined ) {
 
-			fileName = imageMap.get( children[ 0 ].ID );
+			fileName = images[ children[ 0 ].ID ];
 
-		}
-		// check that relative path is not an actually an absolute path and if so use it to load texture
-		else if ( relativeFilePath !== undefined && relativeFilePath[ 0 ] !== '/' && relativeFilePath.match( /^[a-zA-Z]:/ ) === null ) {
+			if ( fileName.indexOf( 'blob:' ) === 0 || fileName.indexOf( 'data:' ) === 0 ) {
 
-			fileName = relativeFilePath;
-
-		}
-		// texture specified by absolute path
-		else {
-
-			var split = filePath.split( /[\\\/]/ );
-
-			if ( split.length > 0 ) {
-
-				fileName = split[ split.length - 1 ];
-
-			} else {
-
-				fileName = filePath;
+				loader.setPath( undefined );
 
 			}
-
-		}
-
-		var currentPath = loader.path;
-
-		if ( fileName.indexOf( 'blob:' ) === 0 || fileName.indexOf( 'data:' ) === 0 ) {
-
-			loader.setPath( undefined );
 
 		}
 
@@ -476,7 +433,7 @@
 		}
 		if ( properties.Diffuse ) {
 
-			parameters.color = parseColor( properties.Diffuse );
+			parameters.color = new THREE.Color().fromArray( properties.Diffuse.value );
 
 		}
 		if ( properties.DisplacementFactor ) {
@@ -491,7 +448,7 @@
 		}
 		if ( properties.Specular ) {
 
-			parameters.specular = parseColor( properties.Specular );
+			parameters.specular = new THREE.Color().fromArray( properties.Specular.value );
 
 		}
 		if ( properties.Shininess ) {
@@ -501,7 +458,7 @@
 		}
 		if ( properties.Emissive ) {
 
-			parameters.emissive = parseColor( properties.Emissive );
+			parameters.emissive = new THREE.Color().fromArray( properties.Emissive.value );
 
 		}
 		if ( properties.EmissiveFactor ) {
@@ -1098,8 +1055,6 @@
 				}
 
 				polygonIndex ++;
-
-				endOfFace = false;
 				faceLength = 0;
 
 				// reset arrays for the next face
@@ -1142,7 +1097,12 @@
 
 		if ( normalBuffer.length > 0 ) {
 
-			geo.addAttribute( 'normal', new THREE.Float32BufferAttribute( normalBuffer, 3 ) );
+			var normalAttribute = new THREE.Float32BufferAttribute( normalBuffer, 3 );
+
+			var normalMatrix = new THREE.Matrix3().getNormalMatrix( preTransform );
+			normalMatrix.applyToBufferAttribute( normalAttribute );
+
+			geo.addAttribute( 'normal', normalAttribute );
 
 		}
 
@@ -1521,10 +1481,9 @@
 
 		} );
 
+		bindSkeleton( FBXTree, skeletons, geometryMap, modelMap, connections );
 
-		bindSkeleton( FBXTree, skeletons, geometryMap, modelMap, connections, sceneGraph );
-
-		addAnimations( FBXTree, connections, sceneGraph, modelMap );
+		addAnimations( FBXTree, connections, sceneGraph );
 
 		createAmbientLight( FBXTree, sceneGraph );
 
@@ -1600,6 +1559,7 @@
 
 						var subBone = bone;
 						bone = new THREE.Bone();
+						bone.matrixWorld.copy( rawBone.transformLink );
 
 						// set name and id here - otherwise in cases where "subBone" is created it will not have a name / id
 						bone.name = THREE.PropertyBinding.sanitizeNodeName( name );
@@ -1692,10 +1652,13 @@
 
 			}
 
+			var focalLength = cameraAttribute.FocalLength ? cameraAttribute.FocalLength.value : null;
+
 			switch ( type ) {
 
 				case 0: // Perspective
 					model = new THREE.PerspectiveCamera( fov, aspect, nearClippingPlane, farClippingPlane );
+					if ( focalLength !== null ) model.setFocalLength( focalLength );
 					break;
 
 				case 1: // Orthographic
@@ -1756,7 +1719,7 @@
 
 			if ( lightAttribute.Color !== undefined ) {
 
-				color = parseColor( lightAttribute.Color );
+				color = new THREE.Color().fromArray( lightAttribute.Color.value );
 
 			}
 
@@ -2052,69 +2015,14 @@
 
 	}
 
-	function bindSkeleton( FBXTree, skeletons, geometryMap, modelMap, connections, sceneGraph ) {
+	function bindSkeleton( FBXTree, skeletons, geometryMap, modelMap, connections ) {
 
-		// Now with the bones created, we can update the skeletons and bind them to the skinned meshes.
-		sceneGraph.updateMatrixWorld( true );
-
-		var worldMatrices = new Map();
-
-		// Put skeleton into bind pose.
-		if ( 'Pose' in FBXTree.Objects ) {
-
-			var BindPoseNode = FBXTree.Objects.Pose;
-
-			for ( var nodeID in BindPoseNode ) {
-
-				if ( BindPoseNode[ nodeID ].attrType === 'BindPose' ) {
-
-					var poseNodes = BindPoseNode[ nodeID ].PoseNode;
-
-					if ( Array.isArray( poseNodes ) ) {
-
-						poseNodes.forEach( function ( node ) {
-
-							var rawMatWrd = new THREE.Matrix4().fromArray( node.Matrix.a );
-							worldMatrices.set( parseInt( node.Node ), rawMatWrd );
-
-						} );
-
-					} else {
-
-						var rawMatWrd = new THREE.Matrix4().fromArray( poseNodes.Matrix.a );
-						worldMatrices.set( parseInt( poseNodes.Node ), rawMatWrd );
-
-					}
-
-				}
-
-			}
-
-		}
+		var bindMatrices = parsePoseNodes( FBXTree );
 
 		for ( var ID in skeletons ) {
 
 			var skeleton = skeletons[ ID ];
 
-			skeleton.bones.forEach( function ( bone, i ) {
-
-				// if the bone's initial transform is set in a poseNode, copy that
-				if ( worldMatrices.has( bone.ID ) ) {
-
-					var mat = worldMatrices.get( bone.ID );
-					bone.matrixWorld.copy( mat );
-
-				}
-				// otherwise use the transform from the rawBone
-				else {
-
-					bone.matrixWorld.copy( skeleton.rawBones[ i ].transformLink );
-
-				}
-
-			} );
-
-			// Now that skeleton is in bind pose, bind to model.
 			var parents = connections.get( parseInt( skeleton.ID ) ).parents;
 
 			parents.forEach( function ( parent ) {
@@ -2130,7 +2038,7 @@
 
 							var model = modelMap.get( geoConnParent.ID );
 
-							model.bind( new THREE.Skeleton( skeleton.bones ), model.matrixWorld );
+							model.bind( new THREE.Skeleton( skeleton.bones ), bindMatrices[ geoConnParent.ID ] );
 
 						}
 
@@ -2142,8 +2050,43 @@
 
 		}
 
-		//Skeleton is now bound, return objects to starting world positions.
-		sceneGraph.updateMatrixWorld( true );
+	}
+
+	function parsePoseNodes( FBXTree ) {
+
+		var bindMatrices = {};
+
+		if ( 'Pose' in FBXTree.Objects ) {
+
+			var BindPoseNode = FBXTree.Objects.Pose;
+
+			for ( var nodeID in BindPoseNode ) {
+
+				if ( BindPoseNode[ nodeID ].attrType === 'BindPose' ) {
+
+					var poseNodes = BindPoseNode[ nodeID ].PoseNode;
+
+					if ( Array.isArray( poseNodes ) ) {
+
+						poseNodes.forEach( function ( poseNode ) {
+
+							bindMatrices[ poseNode.Node ] = new THREE.Matrix4().fromArray( poseNode.Matrix.a );
+
+						} );
+
+					} else {
+
+						bindMatrices[ poseNodes.Node ] = new THREE.Matrix4().fromArray( poseNodes.Matrix.a );
+
+					}
+
+				}
+
+			}
+
+		}
+
+		return bindMatrices;
 
 	}
 
@@ -2274,42 +2217,49 @@
 
 						var curveNode = curveNodesMap.get( child.ID );
 
-						if ( layerCurveNodes[ i ] === undefined ) {
+						// check that the curves are defined for at least one axis, otherwise ignore the curveNode
+						if ( curveNode.curves.x !== undefined || curveNode.curves.y !== undefined || curveNode.curves.z !== undefined ) {
 
-							var modelID;
+							if ( layerCurveNodes[ i ] === undefined ) {
 
-							connections.get( child.ID ).parents.forEach( function ( parent ) {
+								var modelID;
 
-								if ( parent.relationship !== undefined ) modelID = parent.ID;
+								connections.get( child.ID ).parents.forEach( function ( parent ) {
 
-							} );
+									if ( parent.relationship !== undefined ) modelID = parent.ID;
 
-							var rawModel = FBXTree.Objects.Model[ modelID.toString() ];
+								} );
 
-							var node = {
+								var rawModel = FBXTree.Objects.Model[ modelID.toString() ];
 
-								modelName: THREE.PropertyBinding.sanitizeNodeName( rawModel.attrName ),
-								initialPosition: [ 0, 0, 0 ],
-								initialRotation: [ 0, 0, 0 ],
-								initialScale: [ 1, 1, 1 ],
+								var node = {
 
-							};
+									modelName: THREE.PropertyBinding.sanitizeNodeName( rawModel.attrName ),
+									initialPosition: [ 0, 0, 0 ],
+									initialRotation: [ 0, 0, 0 ],
+									initialScale: [ 1, 1, 1 ],
 
-							if ( 'Lcl_Translation' in rawModel ) node.initialPosition = rawModel.Lcl_Translation.value;
+								};
 
-							if ( 'Lcl_Rotation' in rawModel ) node.initialRotation = rawModel.Lcl_Rotation.value;
+								if ( 'Lcl_Translation' in rawModel ) node.initialPosition = rawModel.Lcl_Translation.value;
 
-							if ( 'Lcl_Scaling' in rawModel ) node.initialScale = rawModel.Lcl_Scaling.value;
+								if ( 'Lcl_Rotation' in rawModel ) node.initialRotation = rawModel.Lcl_Rotation.value;
 
-							// if the animated model is pre rotated, we'll have to apply the pre rotations to every
-							// animation value as well
-							if ( 'PreRotation' in rawModel ) node.preRotations = rawModel.PreRotation.value;
+								if ( 'Lcl_Scaling' in rawModel ) node.initialScale = rawModel.Lcl_Scaling.value;
 
-							layerCurveNodes[ i ] = node;
+								// if the animated model is pre rotated, we'll have to apply the pre rotations to every
+								// animation value as well
+								if ( 'PreRotation' in rawModel ) node.preRotations = rawModel.PreRotation.value;
+
+								layerCurveNodes[ i ] = node;
+
+							}
+
+							layerCurveNodes[ i ][ curveNode.attr ] = curveNode;
 
 						}
 
-						layerCurveNodes[ i ][ curveNode.attr ] = curveNode;
+
 
 					}
 
@@ -2370,6 +2320,7 @@
 
 		if ( rawClips === undefined ) return;
 
+
 		for ( var key in rawClips ) {
 
 			var rawClip = rawClips[ key ];
@@ -2400,21 +2351,21 @@
 
 		var tracks = [];
 
-		if ( rawTracks.T !== undefined ) {
+		if ( rawTracks.T !== undefined && Object.keys( rawTracks.T.curves ).length > 0 ) {
 
 			var positionTrack = generateVectorTrack( rawTracks.modelName, rawTracks.T.curves, rawTracks.initialPosition, 'position' );
 			if ( positionTrack !== undefined ) tracks.push( positionTrack );
 
 		}
 
-		if ( rawTracks.R !== undefined ) {
+		if ( rawTracks.R !== undefined && Object.keys( rawTracks.R.curves ).length > 0 ) {
 
 			var rotationTrack = generateRotationTrack( rawTracks.modelName, rawTracks.R.curves, rawTracks.initialRotation, rawTracks.preRotations );
 			if ( rotationTrack !== undefined ) tracks.push( rotationTrack );
 
 		}
 
-		if ( rawTracks.S !== undefined ) {
+		if ( rawTracks.S !== undefined && Object.keys( rawTracks.S.curves ).length > 0 ) {
 
 			var scaleTrack = generateVectorTrack( rawTracks.modelName, rawTracks.S.curves, rawTracks.initialScale, 'scale' );
 			if ( scaleTrack !== undefined ) tracks.push( scaleTrack );
@@ -2678,7 +2629,7 @@
 				// if the subnode already exists, append it
 				if ( nodeName in currentNode ) {
 
-					// special case Pose needs PoseNodes as an array
+				// special case Pose needs PoseNodes as an array
 					if ( nodeName === 'PoseNode' ) {
 
 						currentNode.PoseNode.push( node );
@@ -2868,6 +2819,7 @@
 					innerPropValue = parseFloat( innerPropValue );
 					break;
 
+				case 'Color':
 				case 'ColorRGB':
 				case 'Vector3D':
 				case 'Lcl_Translation':
@@ -2998,7 +2950,7 @@
 
 		},
 
-		parseSubNode( name, node, subNode ) {
+		parseSubNode: function ( name, node, subNode ) {
 
 			// special case: child node is single property
 			if ( subNode.singleProperty === true ) {
@@ -3023,7 +2975,7 @@
 
 				subNode.propertyList.forEach( function ( property, i ) {
 
-							// first Connection is FBX type (OO, OP, etc.). We'll discard these
+					// first Connection is FBX type (OO, OP, etc.). We'll discard these
 					if ( i !== 0 ) array.push( property );
 
 				} );
@@ -3057,7 +3009,7 @@
 				if ( innerPropName.indexOf( 'Lcl ' ) === 0 ) innerPropName = innerPropName.replace( 'Lcl ', 'Lcl_' );
 				if ( innerPropType1.indexOf( 'Lcl ' ) === 0 ) innerPropType1 = innerPropType1.replace( 'Lcl ', 'Lcl_' );
 
-				if ( innerPropType1 === 'ColorRGB' || innerPropType1 === 'Vector' || innerPropType1 === 'Vector3D' || innerPropType1.indexOf( 'Lcl_' ) === 0 ) {
+				if ( innerPropType1 === 'Color' || innerPropType1 === 'ColorRGB' || innerPropType1 === 'Vector' || innerPropType1 === 'Vector3D' || innerPropType1.indexOf( 'Lcl_' ) === 0 ) {
 
 					innerPropValue = [
 						subNode.propertyList[ 4 ],
@@ -3185,7 +3137,7 @@
 
 					if ( window.Zlib === undefined ) {
 
-						throw new Error( 'THREE.FBXLoader: External library Inflate.min.js required, obtain or import from https://github.com/imaya/zlib.js' );
+						console.error( 'THREE.FBXLoader: External library Inflate.min.js required, obtain or import from https://github.com/imaya/zlib.js' );
 
 					}
 
@@ -3549,20 +3501,6 @@
 		} );
 
 		return array;
-
-	}
-
-	function parseColor( property ) {
-
-		var color = new THREE.Color();
-
-		if ( property.type === 'Color' ) {
-
-			return color.setScalar( property.value );
-
-		}
-
-		return color.fromArray( property.value );
 
 	}
 

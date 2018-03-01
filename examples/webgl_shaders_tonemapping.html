@@ -160,7 +160,8 @@
 
 						THREE.ShaderChunk[ "common" ],
 						THREE.ShaderChunk[ "bsdfs" ],
-						THREE.ShaderChunk[ "lights_pars" ],
+						THREE.ShaderChunk[ "lights_pars_begin" ],
+						THREE.ShaderChunk[ "lights_pars_maps" ],
 						THREE.ShaderChunk[ "lights_phong_pars_fragment" ],
 
 						"void main() {",
@@ -342,7 +343,6 @@
 				renderer = new THREE.WebGLRenderer();
 				renderer.setPixelRatio( window.devicePixelRatio );
 				renderer.setSize( window.innerWidth, window.innerHeight );
-				renderer.setFaceCulling( THREE.CullFaceNone );
 				renderer.autoClear = false;
 
 				renderer.gammaInput = true;

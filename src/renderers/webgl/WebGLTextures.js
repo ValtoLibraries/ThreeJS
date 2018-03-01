@@ -5,10 +5,11 @@
 import { LinearFilter, NearestFilter, RGBFormat, RGBAFormat, DepthFormat, DepthStencilFormat, UnsignedShortType, UnsignedIntType, UnsignedInt248Type, FloatType, HalfFloatType, ClampToEdgeWrapping, NearestMipMapLinearFilter, NearestMipMapNearestFilter } from '../../constants.js';
 import { _Math } from '../../math/Math.js';
 
-function WebGLTextures( _gl, extensions, state, properties, capabilities, utils, infoMemory ) {
+function WebGLTextures( _gl, extensions, state, properties, capabilities, utils, info ) {
 
-	var _isWebGL2 = ( typeof WebGL2RenderingContext !== 'undefined' && _gl instanceof window.WebGL2RenderingContext );
+	var _isWebGL2 = ( typeof WebGL2RenderingContext !== 'undefined' && _gl instanceof WebGL2RenderingContext );
 	var _videoTextures = {};
+	var _canvas;
 
 	//
 
@@ -48,16 +49,17 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 		if ( image instanceof HTMLImageElement || image instanceof HTMLCanvasElement || image instanceof ImageBitmap ) {
 
-			var canvas = document.createElementNS( 'http://www.w3.org/1999/xhtml', 'canvas' );
-			canvas.width = _Math.floorPowerOfTwo( image.width );
-			canvas.height = _Math.floorPowerOfTwo( image.height );
+			if ( _canvas === undefined ) _canvas = document.createElementNS( 'http://www.w3.org/1999/xhtml', 'canvas' );
 
-			var context = canvas.getContext( '2d' );
-			context.drawImage( image, 0, 0, canvas.width, canvas.height );
+			_canvas.width = _Math.floorPowerOfTwo( image.width );
+			_canvas.height = _Math.floorPowerOfTwo( image.height );
 
-			console.warn( 'THREE.WebGLRenderer: image is not power of two (' + image.width + 'x' + image.height + '). Resized to ' + canvas.width + 'x' + canvas.height, image );
+			var context = _canvas.getContext( '2d' );
+			context.drawImage( image, 0, 0, _canvas.width, _canvas.height );
 
-			return canvas;
+			console.warn( 'THREE.WebGLRenderer: image is not power of two (' + image.width + 'x' + image.height + '). Resized to ' + _canvas.width + 'x' + _canvas.height, image );
+
+			return _canvas;
 
 		}
 
@@ -109,7 +111,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 		}
 
-		infoMemory.textures --;
+		info.memory.textures --;
 
 	}
 
@@ -121,7 +123,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 		deallocateRenderTarget( renderTarget );
 
-		infoMemory.textures --;
+		info.memory.textures --;
 
 	}
 
@@ -200,6 +202,8 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 		var textureProperties = properties.get( texture );
 
+		if ( texture.isVideoTexture ) updateVideoTexture( texture );
+
 		if ( texture.version > 0 && textureProperties.__version !== texture.version ) {
 
 			var image = texture.image;
@@ -240,7 +244,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 					textureProperties.__image__webglTextureCube = _gl.createTexture();
 
-					infoMemory.textures ++;
+					info.memory.textures ++;
 
 				}
 
@@ -411,13 +415,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 			textureProperties.__webglTexture = _gl.createTexture();
 
-			if ( texture.isVideoTexture ) {
-
-				_videoTextures[ texture.id ] = texture;
-
-			}
-
-			infoMemory.textures ++;
+			info.memory.textures ++;
 
 		}
 
@@ -720,7 +718,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 		textureProperties.__webglTexture = _gl.createTexture();
 
-		infoMemory.textures ++;
+		info.memory.textures ++;
 
 		var isCube = ( renderTarget.isWebGLRenderTargetCube === true );
 		var isTargetPowerOfTwo = isPowerOfTwo( renderTarget );
@@ -798,11 +796,17 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 
 	}
 
-	function updateVideoTextures() {
+	function updateVideoTexture( texture ) {
 
-		for ( var id in _videoTextures ) {
+		var id = texture.id;
+		var frame = info.render.frame;
 
-			_videoTextures[ id ].update();
+		// Check the last frame we updated the VideoTexture
+
+		if ( _videoTextures[ id ] !== frame ) {
+
+			_videoTextures[ id ] = frame;
+			texture.update();
 
 		}
 
@@ -813,7 +817,6 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, utils,
 	this.setTextureCubeDynamic = setTextureCubeDynamic;
 	this.setupRenderTarget = setupRenderTarget;
 	this.updateRenderTargetMipmap = updateRenderTargetMipmap;
-	this.updateVideoTextures = updateVideoTextures;
 
 }
 
