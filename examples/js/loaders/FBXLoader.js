@@ -435,30 +435,25 @@
 
 			parameters.color = new THREE.Color().fromArray( properties.Diffuse.value );
 
+		} else if ( properties.DiffuseColor && properties.DiffuseColor.type === 'Color' ) {
+
+			// The blender exporter exports diffuse here instead of in properties.Diffuse
+			parameters.color = new THREE.Color().fromArray( properties.DiffuseColor.value );
+
 		}
 		if ( properties.DisplacementFactor ) {
 
 			parameters.displacementScale = properties.DisplacementFactor.value;
 
 		}
-		if ( properties.ReflectionFactor ) {
-
-			parameters.reflectivity = properties.ReflectionFactor.value;
-
-		}
-		if ( properties.Specular ) {
-
-			parameters.specular = new THREE.Color().fromArray( properties.Specular.value );
-
-		}
-		if ( properties.Shininess ) {
-
-			parameters.shininess = properties.Shininess.value;
-
-		}
 		if ( properties.Emissive ) {
 
 			parameters.emissive = new THREE.Color().fromArray( properties.Emissive.value );
+
+		} else if ( properties.EmissiveColor && properties.EmissiveColor.type === 'Color' ) {
+
+			// The blender exporter exports emissive color here instead of in properties.Emissive
+			parameters.emissive = new THREE.Color().fromArray( properties.EmissiveColor.value );
 
 		}
 		if ( properties.EmissiveFactor ) {
@@ -474,6 +469,26 @@
 		if ( parameters.opacity < 1.0 ) {
 
 			parameters.transparent = true;
+
+		}
+		if ( properties.ReflectionFactor ) {
+
+			parameters.reflectivity = properties.ReflectionFactor.value;
+
+		}
+		if ( properties.Shininess ) {
+
+			parameters.shininess = properties.Shininess.value;
+
+		}
+		if ( properties.Specular ) {
+
+			parameters.specular = new THREE.Color().fromArray( properties.Specular.value );
+
+		} else if ( properties.SpecularColor && properties.SpecularColor.type === 'Color' ) {
+
+			// The blender exporter exports specular color here instead of in properties.Specular
+			parameters.specular = new THREE.Color().fromArray( properties.SpecularColor.value );
 
 		}
 
@@ -703,6 +718,7 @@
 		// For now just assume one model and get the preRotations from that
 		var modelNode = modelNodes[ 0 ];
 
+
 		if ( 'GeometricRotation' in modelNode ) {
 
 			var array = modelNode.GeometricRotation.value.map( THREE.Math.degToRad );
@@ -715,6 +731,12 @@
 		if ( 'GeometricTranslation' in modelNode ) {
 
 			preTransform.setPosition( new THREE.Vector3().fromArray( modelNode.GeometricTranslation.value ) );
+
+		}
+
+		if ( 'GeometricScaling' in modelNode ) {
+
+			preTransform.scale( new THREE.Vector3().fromArray( modelNode.GeometricScaling.value ) );
 
 		}
 
@@ -1086,7 +1108,7 @@
 
 		if ( skeleton ) {
 
-			geo.addAttribute( 'skinIndex', new THREE.Float32BufferAttribute( weightsIndicesBuffer, 4 ) );
+			geo.addAttribute( 'skinIndex', new THREE.Uint16BufferAttribute( weightsIndicesBuffer, 4 ) );
 
 			geo.addAttribute( 'skinWeight', new THREE.Float32BufferAttribute( vertexWeightsBuffer, 4 ) );
 
@@ -1288,96 +1310,37 @@
 
 	}
 
-	// Functions use the infoObject and given indices to return value array of geometry.
-	// Parameters:
-	// 	- polygonVertexIndex - Index of vertex in draw order (which index of the index buffer refers to this vertex).
-	// 	- polygonIndex - Index of polygon in geometry.
-	// 	- vertexIndex - Index of vertex inside vertex buffer (used because some data refers to old index buffer that we don't use anymore).
-	// 	- infoObject: can be materialInfo, normalInfo, UVInfo or colorInfo
-	// Index type:
-	//	- Direct: index is same as polygonVertexIndex
-	//	- IndexToDirect: infoObject has it's own set of indices
 	var dataArray = [];
-
-	var GetData = {
-
-		ByPolygonVertex: {
-
-			Direct: function ( polygonVertexIndex, polygonIndex, vertexIndex, infoObject ) {
-
-				var from = ( polygonVertexIndex * infoObject.dataSize );
-				var to = ( polygonVertexIndex * infoObject.dataSize ) + infoObject.dataSize;
-
-				return slice( dataArray, infoObject.buffer, from, to );
-
-			},
-
-			IndexToDirect: function ( polygonVertexIndex, polygonIndex, vertexIndex, infoObject ) {
-
-				var index = infoObject.indices[ polygonVertexIndex ];
-				var from = ( index * infoObject.dataSize );
-				var to = ( index * infoObject.dataSize ) + infoObject.dataSize;
-
-				return slice( dataArray, infoObject.buffer, from, to );
-
-			}
-
-		},
-
-		ByPolygon: {
-
-			Direct: function ( polygonVertexIndex, polygonIndex, vertexIndex, infoObject ) {
-
-				var from = polygonIndex * infoObject.dataSize;
-				var to = polygonIndex * infoObject.dataSize + infoObject.dataSize;
-
-				return slice( dataArray, infoObject.buffer, from, to );
-
-			},
-
-			IndexToDirect: function ( polygonVertexIndex, polygonIndex, vertexIndex, infoObject ) {
-
-				var index = infoObject.indices[ polygonIndex ];
-				var from = index * infoObject.dataSize;
-				var to = index * infoObject.dataSize + infoObject.dataSize;
-
-				return slice( dataArray, infoObject.buffer, from, to );
-
-			}
-
-		},
-
-		ByVertice: {
-
-			Direct: function ( polygonVertexIndex, polygonIndex, vertexIndex, infoObject ) {
-
-				var from = ( vertexIndex * infoObject.dataSize );
-				var to = ( vertexIndex * infoObject.dataSize ) + infoObject.dataSize;
-
-				return slice( dataArray, infoObject.buffer, from, to );
-
-			}
-
-		},
-
-		AllSame: {
-
-			IndexToDirect: function ( polygonVertexIndex, polygonIndex, vertexIndex, infoObject ) {
-
-				var from = infoObject.indices[ 0 ] * infoObject.dataSize;
-				var to = infoObject.indices[ 0 ] * infoObject.dataSize + infoObject.dataSize;
-
-				return slice( dataArray, infoObject.buffer, from, to );
-
-			}
-
-		}
-
-	};
 
 	function getData( polygonVertexIndex, polygonIndex, vertexIndex, infoObject ) {
 
-		return GetData[ infoObject.mappingType ][ infoObject.referenceType ]( polygonVertexIndex, polygonIndex, vertexIndex, infoObject );
+		var index;
+
+		switch ( infoObject.mappingType ) {
+
+			case 'ByPolygonVertex' :
+				index = polygonVertexIndex;
+				break;
+			case 'ByPolygon' :
+				index = polygonIndex;
+				break;
+			case 'ByVertice' :
+				index = vertexIndex;
+				break;
+			case 'AllSame' :
+				index = infoObject.indices[ 0 ];
+				break;
+			default :
+				console.warn( 'THREE.FBXLoader: unknown attribute mapping type ' + infoObject.mappingType );
+
+		}
+
+		if ( infoObject.referenceType === 'IndexToDirect' ) index = infoObject.indices[ index ];
+
+		var from = index * infoObject.dataSize;
+		var to = from + infoObject.dataSize;
+
+		return slice( dataArray, infoObject.buffer, from, to );
 
 	}
 
@@ -1741,7 +1704,7 @@
 
 				} else {
 
-					distance = lightAttribute.FarAttenuationEnd.value / 1000;
+					distance = lightAttribute.FarAttenuationEnd.value;
 
 				}
 
@@ -1989,7 +1952,7 @@
 
 			var rotation = modelNode.Lcl_Rotation.value.map( THREE.Math.degToRad );
 			rotation.push( 'ZYX' );
-			model.rotation.fromArray( rotation );
+			model.quaternion.setFromEuler( new THREE.Euler().fromArray( rotation ) );
 
 		}
 
@@ -2007,9 +1970,7 @@
 			var preRotations = new THREE.Euler().fromArray( array );
 
 			preRotations = new THREE.Quaternion().setFromEuler( preRotations );
-			var currentRotation = new THREE.Quaternion().setFromEuler( model.rotation );
-			preRotations.multiply( currentRotation );
-			model.rotation.setFromQuaternion( preRotations, 'ZYX' );
+			model.quaternion.premultiply( preRotations );
 
 		}
 
@@ -2156,6 +2117,14 @@
 				values: rawCurves[ nodeID ].KeyValueFloat.a,
 
 			};
+
+			var offset = animationCurve.times[ 0 ];
+
+			for ( var i = 0; i < animationCurve.times.length; i++ ) {
+
+				animationCurve.times[ i ] -= offset;
+
+			}
 
 			var relationships = connections.get( animationCurve.id );
 

@@ -34,8 +34,7 @@
 		<div>
 		[page:Geometry geometry] — (optional) an instance of [page:Geometry] or [page:BufferGeometry].
 		  Default is a new [page:BufferGeometry].<br />
-		[page:Material material] — (optional) a [page:Material]. Default is a new [page:MeshBasicMaterial]
-		  with a random color.
+		[page:Material material] — (optional) a single or an array of [page:Material]. Default is a new [page:MeshBasicMaterial]
 		</div>
 
 
@@ -77,7 +76,7 @@
 		Undefined by default, but reset to a blank array by [page:Mesh.updateMorphTargets updateMorphTargets].
 		</div>
 
-		<h3>[property:Array morphTargetDictionary]</h3>
+		<h3>[property:Object morphTargetDictionary]</h3>
 		<div>
 		A dictionary of morphTargets based on the morphTarget.name property.
 		Undefined by default, but rebuilt [page:Mesh.updateMorphTargets updateMorphTargets].
